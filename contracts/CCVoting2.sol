@@ -96,17 +96,19 @@ contract CCVoting2 {
 	function unstake(uint stakeId, uint amt) public {
 		StakeInfo storage stakeInfo = stakeById[stakeId];
 		require(stakeInfo.stakedAmt >= amt, 'insufficient-amt');
-		require(stakeInfo.stakedTime + MONITOR_MIN_STAKE_PERIOD < block.timestamp, 'not-mature');
+
+		if (stakeInfo.monitor != address(0)) {
+			require(stakeInfo.stakedTime + MONITOR_MIN_STAKE_PERIOD < block.timestamp, 'not-mature');
+			_unstakeMonitor(stakeInfo.monitor, amt);
+		} else {
+			require(stakeInfo.stakedTime + OPERATOR_MIN_STAKE_PERIOD < block.timestamp, 'not-mature');
+			_unstakeOperator(stakeInfo.operator, amt);
+		}
+
 		stakeInfo.stakedAmt -= amt;
 		if (stakeInfo.stakedAmt == 0) {
 			delete stakeById[stakeId];
 			// TODO: delete stakeId from stakeIdsByAddr
-		}
-
-		if (stakeInfo.monitor != address(0)) {
-			_unstakeMonitor(stakeInfo.monitor, amt);
-		} else {
-			_unstakeOperator(stakeInfo.operator, amt);
 		}
 
 		Address.sendValue(payable(msg.sender), amt);
@@ -119,6 +121,9 @@ contract CCVoting2 {
 		monitor.totalStakedAmt -= amt;
 		if (monitor.addr == msg.sender) {
 			monitor.selfStakedAmt -= amt;
+			if (monitor.inOfficeStartTime > 0) {
+				require(monitor.selfStakedAmt > MONITOR_INIT_STAKE, 'too-less-self-stake');
+			}
 		}
 	}
 
@@ -129,6 +134,9 @@ contract CCVoting2 {
 		operator.totalStakedAmt -= amt;
 		if (operator.addr == msg.sender) {
 			operator.selfStakedAmt -= amt;
+			if (operator.inOfficeStartTime > 0) {
+				require(operator.selfStakedAmt > OPERATOR_INIT_STAKE, 'too-less-self-stake');
+			}
 		}
 	}
 
