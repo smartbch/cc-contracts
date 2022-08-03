@@ -141,3 +141,28 @@ contract CCVoting2 {
 	}
 
 }
+
+
+contract CCVoting2ForTest is CCVoting2 {
+
+	function addMonitor(uint pubkeyPrefix,
+		                bytes32 pubkeyX,
+		                bytes32 rpcUrl, 
+		                bytes32 intro,
+		                uint totalStakedAmt,
+		                uint selfStakedAmt) public {
+		monitors.push(OperatorOrMonitorInfo(msg.sender, 
+			pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0));
+	}
+
+	function addOperator(uint pubkeyPrefix,
+		                 bytes32 pubkeyX,
+		                 bytes32 rpcUrl, 
+		                 bytes32 intro,
+		                 uint totalStakedAmt,
+		                 uint selfStakedAmt) public {
+		operators.push(OperatorOrMonitorInfo(msg.sender, 
+			pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0));
+	}
+
+}
