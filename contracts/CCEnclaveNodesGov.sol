@@ -1,17 +1,15 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
+// import "hardhat/console.sol";
+
 contract CCEnclaveNodesGov {
 
     struct EnclaveNodeInfo {
         uint id; // increment from 1
-        uint signerID;
-        uint productID;
-        uint securityVersion;
-        uint smartbchdHash;
-        bytes32 smartbchdVersion;
-        bytes32 rpcUrl;
-        bytes32 introduction;
+        bytes information; // JSON
+        bytes rpcUrl;
+        bytes introduction;
     }
 
     struct Proposal {
@@ -23,7 +21,7 @@ contract CCEnclaveNodesGov {
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
-    event ProposeNewNode     (uint indexed id, address indexed proposer, EnclaveNodeInfo node);
+    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes information, bytes rpcUrl, bytes introduction);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
@@ -51,35 +49,45 @@ contract CCEnclaveNodesGov {
         }
     }
 
+    function getAllProposers() public view returns (address[] memory _proposers) {
+        _proposers = proposers;
+    }
+    function getProposal(uint id) public view returns (address proposer,
+                                                       address[] memory newProposers,
+                                                       EnclaveNodeInfo memory newNode,
+                                                       uint obsoleteNodeId,
+                                                       uint votes) {
+        Proposal storage proposal = proposals[id];
+        proposer = proposal.proposer;
+        newProposers = proposal.newProposers;
+        newNode = proposal.newNode;
+        obsoleteNodeId = proposal.obsoleteNodeId;
+        votes = proposal.votes;
+    }
+
+
     function proposeNewProposers(address[] calldata newProposers) public onlyProposer {
         require(newProposers.length > 0, 'no-new-proposers');
         require(newProposers.length <= 256, 'too-many-proposers');
-        proposals.push(Proposal(msg.sender, newProposers, EnclaveNodeInfo(0,0,0,0,0,0,0,0), 0, 0));
+        proposals.push(Proposal(msg.sender, newProposers, EnclaveNodeInfo(0,'','',''), 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
-    function proposeNewNode(
-        uint signerID,
-        uint productID,
-        uint securityVersion,
-        uint smartbchdHash,
-        bytes32 smartbchdVersion,
-        bytes32 rpcUrl,
-        bytes32 introduction
-    ) public onlyProposer {
-        EnclaveNodeInfo memory node = EnclaveNodeInfo(0, 
-     	   signerID, productID, securityVersion, smartbchdHash, smartbchdVersion, rpcUrl, introduction);
+    function proposeNewNode(bytes calldata information, bytes calldata rpcUrl, bytes calldata introduction) public onlyProposer {
+        require(information.length > 0, 'invalid-info');
+        require(rpcUrl.length > 0, 'invalid-rpc-url');
+        EnclaveNodeInfo memory node = EnclaveNodeInfo(0, information, rpcUrl, introduction);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
-        emit ProposeNewNode(id, msg.sender, node);
+        emit ProposeNewNode(id, msg.sender, information, rpcUrl, introduction);
     }
 
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
         require(nodeIdxById[nodeId] > 0, 'no-such-node');
-        proposals.push(Proposal(msg.sender, new address[](0), EnclaveNodeInfo(0,0,0,0,0,0,0,0), nodeId, 0));
+        proposals.push(Proposal(msg.sender, new address[](0), EnclaveNodeInfo(0,'','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeObsoleteNode(id, msg.sender, nodeId);
@@ -106,9 +114,7 @@ contract CCEnclaveNodesGov {
         require(id < proposals.length, 'no-such-proposal');
 
         Proposal storage proposal = proposals[id];
-        require(proposal.newProposers.length > 0
-            || proposal.newNode.id > 0
-            || proposal.obsoleteNodeId > 0, 'executed-proposal');
+        require(proposal.proposer != address(0), 'executed-proposal');
 
         uint minVoteCount = proposers.length * 2 / 3;
         uint voteCount = getVoteCount(proposal.votes);
@@ -119,7 +125,7 @@ contract CCEnclaveNodesGov {
             setNewProposers(proposal.newProposers);
             minProposalId = proposals.length;
             delete proposals[id];
-        } else if (proposal.newNode.signerID > 0) {
+        } else if (proposal.newNode.information.length > 0) {
             EnclaveNodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId;
             nodes.push(node);

@@ -120,5 +120,8 @@ contract CCOperatorsGovForTest is CCOperatorsGov {
         operators.push(OperatorInfo(msg.sender, 
             pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0));
     }
+    function removeLastOperator() public {
+    	operators.pop();
+    }
 
 }
