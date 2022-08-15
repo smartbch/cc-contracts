@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 contract CCEnclaveNodesGov {
 
     struct EnclaveNodeInfo {
-        uint id; // increment from 1
+        uint id; // start from 1
         bytes information; // JSON
         bytes rpcUrl;
         bytes introduction;
@@ -31,7 +31,7 @@ contract CCEnclaveNodesGov {
 
     uint public lastNodeId;
     EnclaveNodeInfo[] public nodes;
-    mapping(uint => uint) nodeIdxById;
+    mapping(uint => uint) nodeSlotById; // nodeId => nodeIdx+1
 
     uint public minProposalId;
     Proposal[] public proposals;
@@ -86,7 +86,7 @@ contract CCEnclaveNodesGov {
     }
 
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
-        require(nodeIdxById[nodeId] > 0, 'no-such-node');
+        require(nodeSlotById[nodeId] > 0, 'no-such-node');
         proposals.push(Proposal(msg.sender, new address[](0), EnclaveNodeInfo(0,'','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
@@ -96,6 +96,10 @@ contract CCEnclaveNodesGov {
     function voteProposal(uint id, bool agreed) public onlyProposer {
         require(id >= minProposalId, 'outdated-proposal');
         require(id < proposals.length, 'no-such-proposal');
+
+        Proposal storage proposal = proposals[id];
+        require(proposal.proposer != address(0), 'executed-proposal');
+
         _vote(id, agreed);
         emit VoteProposal(id, msg.sender, agreed);
     }
@@ -129,9 +133,10 @@ contract CCEnclaveNodesGov {
             EnclaveNodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId;
             nodes.push(node);
+            nodeSlotById[node.id] = nodes.length;
             delete proposals[id];
         } else {
-            uint nodeIdx = nodeIdxById[proposal.obsoleteNodeId];
+            uint nodeIdx = nodeSlotById[proposal.obsoleteNodeId] - 1;
             nodes[nodeIdx] = nodes[nodes.length - 1];
             nodes.pop();
             delete proposals[id];
