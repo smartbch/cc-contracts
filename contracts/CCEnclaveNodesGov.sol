@@ -8,8 +8,8 @@ contract CCEnclaveNodesGov {
     struct EnclaveNodeInfo {
         uint id; // start from 1
         bytes information; // JSON
-        bytes rpcUrl;
-        bytes introduction;
+        bytes32 rpcUrl;
+        bytes32 introduction;
     }
 
     struct Proposal {
@@ -21,7 +21,7 @@ contract CCEnclaveNodesGov {
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
-    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes information, bytes rpcUrl, bytes introduction);
+    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes information, bytes32 rpcUrl, bytes32 introduction);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
@@ -75,9 +75,8 @@ contract CCEnclaveNodesGov {
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
-    function proposeNewNode(bytes calldata information, bytes calldata rpcUrl, bytes calldata introduction) public onlyProposer {
-        require(information.length > 0, 'invalid-info');
-        require(rpcUrl.length > 0, 'invalid-rpc-url');
+    function proposeNewNode(bytes calldata information, bytes32 rpcUrl, bytes32 introduction) public onlyProposer {
+        require(information.length != 0, 'invalid-info');
         EnclaveNodeInfo memory node = EnclaveNodeInfo(0, information, rpcUrl, introduction);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
         uint id = proposals.length - 1;

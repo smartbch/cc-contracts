@@ -1,11 +1,12 @@
 const { expect } = require("chai");
 
 const zeroAddr = '0x0000000000000000000000000000000000000000';
-const testNodeInfo = '0x1234';
-const testNodeRpcUrl = '0x5678';
-const testNodeIntro = '0xabcd';
+const zeroBytes32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const testNodeInfo = '0x0000000000000000000000000000000000000000000000000000000000001234';
+const testNodeRpcUrl = '0x0000000000000000000000000000000000000000000000000000000000005678';
+const testNodeIntro = '0x000000000000000000000000000000000000000000000000000000000000abcd';
 const testNewNode = { id: 0, information: testNodeInfo, rpcUrl: testNodeRpcUrl, introduction: testNodeIntro };
-const emptyNewNode = { id: 0, information: '0x', rpcUrl: '0x', introduction: '0x' };
+const emptyNewNode = { id: 0, information: '0x', rpcUrl: zeroBytes32, introduction: zeroBytes32 };
 
 
 describe("CCEnclaveNodesGov", function () {
@@ -50,8 +51,8 @@ describe("CCEnclaveNodesGov", function () {
       .to.be.revertedWith('not-proposer');
     await expect(gov.connect(p1).proposeNewNode('0x', testNodeRpcUrl, testNodeIntro))
       .to.be.revertedWith('invalid-info');
-    await expect(gov.connect(p2).proposeNewNode(testNodeInfo, '0x', testNodeIntro))
-      .to.be.revertedWith('invalid-rpc-url');
+    // await expect(gov.connect(p2).proposeNewNode(testNodeInfo, zeroBytes32, testNodeIntro))
+    //   .to.be.revertedWith('invalid-rpc-url');
 
     await expect(gov.connect(p5).proposeObsoleteNode(123))
       .to.be.revertedWith('not-proposer');
@@ -237,11 +238,11 @@ describe("CCEnclaveNodesGov", function () {
     await gov.deployed();
 
     // create 5 NewNode proposals
-    await gov.connect(p2).proposeNewNode('0xa0', '0xb0', '0xc0'); // proposal#0
-    await gov.connect(p2).proposeNewNode('0xa1', '0xb1', '0xc1'); // proposal#1
-    await gov.connect(p2).proposeNewNode('0xa2', '0xb2', '0xc2'); // proposal#2
-    await gov.connect(p2).proposeNewNode('0xa3', '0xb3', '0xc3'); // proposal#3
-    await gov.connect(p2).proposeNewNode('0xa4', '0xb4', '0xc4'); // proposal#4
+    await gov.connect(p2).proposeNewNode('0xa0', testNodeRpcUrl, testNodeIntro); // proposal#0
+    await gov.connect(p2).proposeNewNode('0xa1', testNodeRpcUrl, testNodeIntro); // proposal#1
+    await gov.connect(p2).proposeNewNode('0xa2', testNodeRpcUrl, testNodeIntro); // proposal#2
+    await gov.connect(p2).proposeNewNode('0xa3', testNodeRpcUrl, testNodeIntro); // proposal#3
+    await gov.connect(p2).proposeNewNode('0xa4', testNodeRpcUrl, testNodeIntro); // proposal#4
 
     // execute 4 of them
     await gov.connect(p1).voteProposal(1, true);
@@ -253,10 +254,10 @@ describe("CCEnclaveNodesGov", function () {
     await gov.connect(p1).voteProposal(4, true);
     await gov.connect(p1).execProposal(4);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, info: '0xa1', rpcUrl: '0xb1', intro: '0xc1' },
-      { id: 2, info: '0xa3', rpcUrl: '0xb3', intro: '0xc3' },
-      { id: 3, info: '0xa2', rpcUrl: '0xb2', intro: '0xc2' },
-      { id: 4, info: '0xa4', rpcUrl: '0xb4', intro: '0xc4' },
+      { id: 1, info: '0xa1', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
+      { id: 2, info: '0xa3', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
+      { id: 3, info: '0xa2', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
+      { id: 4, info: '0xa4', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
     ]);
 
     // obsolete node#2
@@ -264,9 +265,9 @@ describe("CCEnclaveNodesGov", function () {
     await gov.connect(p1).voteProposal(5, true);
     await expect(gov.connect(p1).execProposal(5)).to.emit(gov, 'ExecProposal').withArgs(5);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, info: '0xa1', rpcUrl: '0xb1', intro: '0xc1' },
-      { id: 4, info: '0xa4', rpcUrl: '0xb4', intro: '0xc4' },
-      { id: 3, info: '0xa2', rpcUrl: '0xb2', intro: '0xc2' },
+      { id: 1, info: '0xa1', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
+      { id: 4, info: '0xa4', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
+      { id: 3, info: '0xa2', rpcUrl: testNodeRpcUrl, intro: testNodeIntro },
     ]);
   });
 
