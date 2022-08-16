@@ -31,9 +31,14 @@ contract CCMonitorsGov {
                           bytes32 intro) public payable {
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
         require(msg.value >= MIN_STAKE, 'deposit-too-less');
-        require(monitorIdxByAddr[msg.sender] == 0, 'monitor-existed');
 
-        if (freeSlots.length >= 0) {
+        uint monitorIdx = monitorIdxByAddr[msg.sender];
+        require(monitorIdx == 0, 'monitor-existed');
+        if (monitors.length > 0) {            
+            require(monitors[0].addr != msg.sender, 'monitor-existed');
+        }
+
+        if (freeSlots.length > 0) {
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
             monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0);
