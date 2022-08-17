@@ -22,7 +22,7 @@ contract CCMonitorsGov {
     uint constant UNSTAKE_WINDOW = 10 days;
 
     uint public lastElectionTime;  // set by Golang
-    MonitorInfo[] monitors; // read by Golang
+    MonitorInfo[] public monitors; // read by Golang
     mapping(address => uint) monitorIdxByAddr;
     uint[] freeSlots;
 
@@ -52,21 +52,23 @@ contract CCMonitorsGov {
     }
 
     function addStake() public payable {
+        require(monitors.length > 0, 'not-monitor');
         uint monitorIdx = monitorIdxByAddr[msg.sender];
         MonitorInfo storage monitor = monitors[monitorIdx];
-        require(monitor.addr == msg.sender, 'no-such-monitor');
+        require(monitor.addr == msg.sender, 'not-monitor');
         require(msg.value > 0, 'deposit-nothing');
         monitor.stakedAmt += msg.value;
         emit MonitorStake(msg.sender, msg.value);
     }
 
     function removeStake(uint amt) public {
+        require(monitors.length > 0, 'not-monitor');
         uint monitorIdx = monitorIdxByAddr[msg.sender];
         MonitorInfo storage monitor = monitors[monitorIdx];
-        require(monitor.addr == msg.sender, 'no-such-monitor');
+        require(monitor.addr == msg.sender, 'not-monitor');
         require(monitor.stakedAmt >= amt, 'withdraw-too-much');
 
-        monitor.stakedAmt += amt;
+        monitor.stakedAmt -= amt;
         if (monitor.stakedAmt < MIN_STAKE) {
             require(monitor.electedTime == 0, 'monitor-is-active');
             require(block.timestamp - lastElectionTime < UNSTAKE_WINDOW, "outside-unstake-window");
@@ -97,6 +99,18 @@ contract CCMonitorsGovForTest is CCMonitorsGov {
                         uint stakedAmt) public {
         monitors.push(MonitorInfo(msg.sender, 
             pubkeyPrefix, pubkeyX, intro, stakedAmt, 0));
+    }
+
+}
+
+contract CCMonitorsGovForUT is CCMonitorsGov {
+
+    function setElectedTime(uint idx, uint ts) public {
+        monitors[idx].electedTime = ts;
+    }
+
+    function setLastElectionTime() public {
+        lastElectionTime = block.timestamp;
     }
 
 }
