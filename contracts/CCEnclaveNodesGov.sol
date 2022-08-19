@@ -7,7 +7,8 @@ contract CCEnclaveNodesGov {
 
     struct EnclaveNodeInfo {
         uint id; // start from 1
-        bytes information; // JSON
+        bytes32 certHash;
+        bytes32 certUrl;
         bytes32 rpcUrl;
         bytes32 introduction;
     }
@@ -21,7 +22,7 @@ contract CCEnclaveNodesGov {
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
-    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes information, bytes32 rpcUrl, bytes32 introduction);
+    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 introduction);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
@@ -69,24 +70,23 @@ contract CCEnclaveNodesGov {
     function proposeNewProposers(address[] calldata newProposers) public onlyProposer {
         require(newProposers.length > 0, 'no-new-proposers');
         require(newProposers.length <= 256, 'too-many-proposers');
-        proposals.push(Proposal(msg.sender, newProposers, EnclaveNodeInfo(0,'','',''), 0, 0));
+        proposals.push(Proposal(msg.sender, newProposers, EnclaveNodeInfo(0,'','','',''), 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
-    function proposeNewNode(bytes calldata information, bytes32 rpcUrl, bytes32 introduction) public onlyProposer {
-        require(information.length != 0, 'invalid-info');
-        EnclaveNodeInfo memory node = EnclaveNodeInfo(0, information, rpcUrl, introduction);
+    function proposeNewNode(bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 introduction) public onlyProposer {
+        EnclaveNodeInfo memory node = EnclaveNodeInfo(0, certHash, certUrl, rpcUrl, introduction);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
-        emit ProposeNewNode(id, msg.sender, information, rpcUrl, introduction);
+        emit ProposeNewNode(id, msg.sender, certHash, certUrl, rpcUrl, introduction);
     }
 
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
         require(nodeSlotById[nodeId] > 0, 'no-such-node');
-        proposals.push(Proposal(msg.sender, new address[](0), EnclaveNodeInfo(0,'','',''), nodeId, 0));
+        proposals.push(Proposal(msg.sender, new address[](0), EnclaveNodeInfo(0,'','','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeObsoleteNode(id, msg.sender, nodeId);
@@ -128,7 +128,7 @@ contract CCEnclaveNodesGov {
             setNewProposers(proposal.newProposers);
             minProposalId = proposals.length;
             delete proposals[id];
-        } else if (proposal.newNode.information.length > 0) {
+        } else if (proposal.newNode.certHash > 0) {
             EnclaveNodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId;
             nodes.push(node);
