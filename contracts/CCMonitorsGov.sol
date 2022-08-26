@@ -3,7 +3,13 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract CCMonitorsGov {
+interface ICCMonitorsGov {
+
+    function isMonitor(address addr) external view returns (bool);
+
+}
+
+contract CCMonitorsGov is ICCMonitorsGov {
 
     struct MonitorInfo {
         address addr;         // address
@@ -25,6 +31,16 @@ contract CCMonitorsGov {
     MonitorInfo[] public monitors; // read by Golang
     mapping(address => uint) monitorIdxByAddr;
     uint[] freeSlots;
+
+    function isMonitor(address addr) external view override returns (bool) {
+        if (monitors.length == 0) {
+            return false;
+        }
+
+        uint idx = monitorIdxByAddr[addr];
+        MonitorInfo storage info = monitors[idx];
+        return info.addr == addr && info.electedTime > 0;
+    }
 
     function applyMonitor(uint8 pubkeyPrefix,
                           bytes32 pubkeyX,

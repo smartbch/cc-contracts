@@ -189,6 +189,28 @@ describe("CCMonitorsGov", function () {
     ]);
   });
 
+  it("isMonitor", async () => {
+    const { gov, op1, op2, op3, op4, op5 } = await loadFixture(deployGov);
+    expect(await gov.isMonitor(op1.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+
+    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakeAmt.add(1)});
+    await gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakeAmt.add(2)});
+    await gov.connect(op3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakeAmt.add(3)});
+    expect(await gov.isMonitor(op1.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+
+    await gov.setElectedTime(0, 123456789);
+    await gov.setElectedTime(1, 123456789);
+    expect(await gov.isMonitor(op1.address)).to.be.equal(true);
+    expect(await gov.isMonitor(op2.address)).to.be.equal(true);
+    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op4.address)).to.be.equal(false);
+    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+  });
+
 });
 
 
