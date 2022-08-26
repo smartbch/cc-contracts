@@ -1,6 +1,7 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
+import { ICCMonitorsGov } from "./CCMonitorsGov.sol";
 // import "hardhat/console.sol";
 
 contract CCEnclaveNodesGov {
@@ -26,6 +27,9 @@ contract CCEnclaveNodesGov {
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
+    event RemoveNodeByMonitor(uint indexed nodeId, address indexed monitor);
+
+    address immutable public MONITORS_GOV_ADDR;
 
     address[] public proposers;
     mapping(address => uint) private proposerSlots; // index+1 is stored actually
@@ -42,12 +46,22 @@ contract CCEnclaveNodesGov {
         _;
     }
 
-    constructor(address[] memory _proposers) {
+    modifier onlyMonitor() {
+        require(ICCMonitorsGov(MONITORS_GOV_ADDR).isMonitor(msg.sender), 'not-monitor');
+        _;
+    }
+
+    constructor(address monitorsGovAddr, address[] memory _proposers) {
+        MONITORS_GOV_ADDR = monitorsGovAddr;
         require(_proposers.length > 0, 'no-proposers');
         require(_proposers.length <= 256, 'too-many-proposers');
         for (uint i = 0; i < _proposers.length; i++) {
             setNewProposer(_proposers[i], i);
         }
+    }
+
+    function getNodeCount() public view returns (uint) {
+        return nodes.length;
     }
 
     function getAllProposers() public view returns (address[] memory _proposers) {
@@ -135,13 +149,17 @@ contract CCEnclaveNodesGov {
             nodeSlotById[node.id] = nodes.length;
             delete proposals[id];
         } else {
-            uint nodeIdx = nodeSlotById[proposal.obsoleteNodeId] - 1;
-            nodes[nodeIdx] = nodes[nodes.length - 1];
-            nodes.pop();
+            assert(proposal.obsoleteNodeId > 0);
+            removeNodeById(proposal.obsoleteNodeId);
             delete proposals[id];
         }
 
         emit ExecProposal(id);
+    }
+
+    function removeNode(uint id) public onlyMonitor {
+        removeNodeById(id);
+        emit RemoveNodeByMonitor(id, msg.sender);
     }
 
     function getVoteCount(uint votes) private pure returns (uint n) {
@@ -165,6 +183,33 @@ contract CCEnclaveNodesGov {
         require(proposerSlots[proposer] == 0, 'duplicated-proposer');
         proposerSlots[proposer] = idx + 1;
         proposers.push(proposer);
+    }
+
+    function removeNodeById(uint nodeId) private {
+        uint nodeIdxPlus1 = nodeSlotById[nodeId];
+        require(nodeIdxPlus1 > 0, 'invalid-node-id');
+
+        uint nodeIdx = nodeIdxPlus1 - 1;
+        if (nodes.length > 1) {
+            nodes[nodeIdx] = nodes[nodes.length - 1];
+            nodeSlotById[nodes[nodeIdx].id] = nodeIdx + 1;
+        }
+        nodes.pop();
+        delete nodeSlotById[nodeId];
+    }
+
+}
+
+contract MonitorsGovForTest is ICCMonitorsGov {
+
+    mapping(address => bool) monitors;
+
+    function isMonitor(address addr) external view override returns (bool) {
+        return monitors[addr];
+    }
+
+    function becomeMonitor() public {
+        monitors[msg.sender] = true;
     }
 
 }

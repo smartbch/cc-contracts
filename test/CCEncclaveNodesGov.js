@@ -13,32 +13,39 @@ const emptyNewNode = { id: 0, certHash: zeroBytes32,  certUrl: zeroBytes32, rpcU
 describe("CCEnclaveNodesGov", function () {
 
   let p1, p2, p3, p4, p5, p6;
-  let NodesGov;
+  let NodesGov, MonitorsGovForTest;
+  let monitorsGovForTest, monitorsGovAddr;
 
   before(async () => {
     [p1, p2, p3, p4, p5, p6] = await ethers.getSigners();
     NodesGov = await ethers.getContractFactory("CCEnclaveNodesGov");
+    MonitorsGovForTest = await ethers.getContractFactory("MonitorsGovForTest");
+  });
+
+  beforeEach(async () => {
+    monitorsGovForTest = await MonitorsGovForTest.deploy();
+    monitorsGovAddr = monitorsGovForTest.address;
   });
 
   it("init: errors", async () => {
-    await expect(NodesGov.deploy([]))
+    await expect(NodesGov.deploy(monitorsGovAddr, []))
       .to.be.revertedWith('no-proposers');
-    await expect(NodesGov.deploy(Array(257).fill(p1.address)))
+    await expect(NodesGov.deploy(monitorsGovAddr, Array(257).fill(p1.address)))
       .to.be.revertedWith('too-many-proposers');
-    await expect(NodesGov.deploy([p1.address, p2.address, p1.address]))
+    await expect(NodesGov.deploy(monitorsGovAddr, [p1.address, p2.address, p1.address]))
       .to.be.revertedWith('duplicated-proposer');
   });
 
   it("init: ok", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
     expect(await gov.getAllProposers()).to.deep.equal(proposers);
   });
 
   it("propose: errors", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     await expect(gov.connect(p5).proposeNewProposers([p5.address]))
@@ -60,7 +67,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("propose: ok", async () => {
     const proposers = [p1, p2, p3, p4, p5, p6];
-    const gov = await NodesGov.deploy(proposers.map(x => x.address));
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers.map(x => x.address));
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -102,7 +109,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("vote: errors", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -130,7 +137,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("vote: ok", async () => {
     const proposers = [p1, p2, p3, p4, p5].map(x => x.address);
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -175,7 +182,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("exec: errors", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
@@ -202,7 +209,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("exec: ok", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
@@ -232,7 +239,7 @@ describe("CCEnclaveNodesGov", function () {
 
   it("exec: nodes", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     // create 5 NewNode proposals
@@ -265,6 +272,62 @@ describe("CCEnclaveNodesGov", function () {
     expect(await getAllNodes(gov)).to.deep.equal([
       { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
       { id: 4, certHash: bytes32('cert4'), certUrl: bytes32('url4'), rpcUrl: bytes32('rpc4'), intro: bytes32('node4') },
+      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+    ]);
+
+    // obsolete node#4
+    await gov.connect(p2).proposeObsoleteNode(4); // proposal#6
+    await gov.connect(p1).voteProposal(6, true);
+    await expect(gov.connect(p1).execProposal(6)).to.emit(gov, 'ExecProposal').withArgs(6);
+    expect(await getAllNodes(gov)).to.deep.equal([
+      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
+      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+    ]);
+
+    // obsolete node#3
+    await gov.connect(p2).proposeObsoleteNode(3); // proposal#7
+    await gov.connect(p1).voteProposal(7, true);
+    await expect(gov.connect(p1).execProposal(7)).to.emit(gov, 'ExecProposal').withArgs(7);
+    expect(await getAllNodes(gov)).to.deep.equal([
+      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
+    ]);
+
+    // obsolete node#1
+    await gov.connect(p2).proposeObsoleteNode(1); // proposal#8
+    await gov.connect(p1).voteProposal(8, true);
+    await expect(gov.connect(p1).execProposal(8)).to.emit(gov, 'ExecProposal').withArgs(8);
+    expect(await getAllNodes(gov)).to.deep.equal([
+    ]);
+
+  });
+
+  it("removeNodeByMonitor", async () => {
+    const proposers = [p1, p2, p3].map(x => x.address);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    await gov.deployed();
+
+    // create 3 NewNode proposals
+    await gov.connect(p2).proposeNewNode(bytes32('cert0'), bytes32('url0'), bytes32('rpc0'), bytes32('node0')); // proposal#0
+    await gov.connect(p2).proposeNewNode(bytes32('cert1'), bytes32('url1'), bytes32('rpc1'), bytes32('node1')); // proposal#1
+    await gov.connect(p2).proposeNewNode(bytes32('cert2'), bytes32('url2'), bytes32('rpc2'), bytes32('node2')); // proposal#2
+    await gov.connect(p1).voteProposal(0, true);
+    await gov.connect(p1).execProposal(0);
+    await gov.connect(p1).voteProposal(1, true);
+    await gov.connect(p1).execProposal(1);
+    await gov.connect(p1).voteProposal(2, true);
+    await gov.connect(p1).execProposal(2);
+    expect(await getAllNodes(gov)).to.deep.equal([
+      { id: 1, certHash: bytes32('cert0'), certUrl: bytes32('url0'), rpcUrl: bytes32('rpc0'), intro: bytes32('node0') },
+      { id: 2, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
+      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+    ]);
+
+    await expect(gov.connect(p3).removeNode(1)).to.be.revertedWith('not-monitor');
+
+    await monitorsGovForTest.connect(p5).becomeMonitor();
+    await expect(gov.connect(p5).removeNode(2)).to.emit(gov, 'RemoveNodeByMonitor').withArgs(2, p5.address);
+    expect(await getAllNodes(gov)).to.deep.equal([
+      { id: 1, certHash: bytes32('cert0'), certUrl: bytes32('url0'), rpcUrl: bytes32('rpc0'), intro: bytes32('node0') },
       { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
     ]);
   });
@@ -302,7 +365,8 @@ async function getProposal(gov, id) {
 
 async function getAllNodes(gov) {
   const nodes = [];
-  for (let i = 0; ; i++) {
+  const n = await gov.getNodeCount();
+  for (let i = 0; i < n; i++) {
     try {
       nodes.push(await getNode(gov, i));
     } catch (err) {
