@@ -7,18 +7,23 @@
 const hre = require("hardhat");
 
 async function main() {
-  // const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  // const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  // const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  // deploy CCMonitorsGov
+  const CCMonitorsGov = await hre.ethers.getContractFactory("CCMonitorsGov");
+  const ccMonitorsGov = await CCMonitorsGov.deploy();
+  await ccMonitorsGov.deployed();
+  console.log("CCMonitorsGov deployed to:", ccMonitorsGov.address);
 
-  // const lockedAmount = hre.ethers.utils.parseEther("1");
+  // deploy CCOperatorsGov
+  const CCOperatorsGov = await hre.ethers.getContractFactory("CCOperatorsGov");
+  const ccOperatorsGov = await CCOperatorsGov.deploy();
+  await ccOperatorsGov.deployed();
+  console.log("CCOperatorsGov deployed to:", ccOperatorsGov.address);
 
-  // const Lock = await hre.ethers.getContractFactory("Lock");
-  // const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  // await lock.deployed();
-
-  // console.log("Lock with 1 ETH deployed to:", lock.address);
+  // deploy CCEnclaveNodesGov
+  const CCEnclaveNodesGov = await hre.ethers.getContractFactory("CCEnclaveNodesGov");
+  const ccEnclaveNodesGov = await CCEnclaveNodesGov.deploy(ccMonitorsGov.address, []);
+  await ccEnclaveNodesGov.deployed();
+  console.log("CCEnclaveNodesGov deployed to:", ccEnclaveNodesGov.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
