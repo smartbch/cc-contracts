@@ -10,21 +10,21 @@ const testNewNode =  { id: 0, certHash: testCertHash, certUrl: testCertUrl, rpcU
 const emptyNewNode = { id: 0, certHash: zeroBytes32,  certUrl: zeroBytes32, rpcUrl: zeroBytes32,    intro: zeroBytes32   };
 
 
-describe("CCEnclaveNodesGov", function () {
+describe("CCSbchNodesGov", function () {
 
   let p1, p2, p3, p4, p5, p6;
-  let NodesGov, MonitorsGovForTest;
-  let monitorsGovForTest, monitorsGovAddr;
+  let NodesGov, MonitorsGovMock;
+  let monitorsGovMock, monitorsGovAddr;
 
   before(async () => {
     [p1, p2, p3, p4, p5, p6] = await ethers.getSigners();
-    NodesGov = await ethers.getContractFactory("CCEnclaveNodesGov");
-    MonitorsGovForTest = await ethers.getContractFactory("MonitorsGovForTest");
+    NodesGov = await ethers.getContractFactory("CCSbchNodesGov");
+    MonitorsGovMock = await ethers.getContractFactory("CCMonitorsGovMock");
   });
 
   beforeEach(async () => {
-    monitorsGovForTest = await MonitorsGovForTest.deploy();
-    monitorsGovAddr = monitorsGovForTest.address;
+    monitorsGovMock = await MonitorsGovMock.deploy();
+    monitorsGovAddr = monitorsGovMock.address;
   });
 
   it("init: errors", async () => {
@@ -324,7 +324,7 @@ describe("CCEnclaveNodesGov", function () {
 
     await expect(gov.connect(p3).removeNode(1)).to.be.revertedWith('not-monitor');
 
-    await monitorsGovForTest.connect(p5).becomeMonitor();
+    await monitorsGovMock.connect(p5).becomeMonitor();
     await expect(gov.connect(p5).removeNode(2)).to.emit(gov, 'RemoveNodeByMonitor').withArgs(2, p5.address);
     expect(await getAllNodes(gov)).to.deep.equal([
       { id: 1, certHash: bytes32('cert0'), certUrl: bytes32('url0'), rpcUrl: bytes32('rpc0'), intro: bytes32('node0') },
