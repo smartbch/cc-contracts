@@ -17,7 +17,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
         uint    pubkeyPrefix; // 0x02 or 0x03
         bytes32 pubkeyX;      // x
         bytes32 intro;        // introduction
-        uint    stakedAmt;    // in BCH
+        uint    stakedAmt;    // staked BCH
         uint    electedTime;  // 0 means not elected, set by Golang
     }
 
