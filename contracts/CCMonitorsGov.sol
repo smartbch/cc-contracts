@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+// import "hardhat/console.sol";
 
 interface ICCMonitorsGov {
 
@@ -13,19 +14,19 @@ contract CCMonitorsGov is ICCMonitorsGov {
 
     struct MonitorInfo {
         address addr;         // address
-        uint    pubkeyPrefix; // 0x02 or 0x03 (TODO: change type to uint8)
+        uint    pubkeyPrefix; // 0x02 or 0x03
         bytes32 pubkeyX;      // x
         bytes32 intro;        // introduction
         uint    stakedAmt;    // in BCH
         uint    electedTime;  // 0 means not elected, set by Golang
     }
 
-    event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint initStakeAmt);
+    event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
     event MonitorStake(address indexed candidate, uint amt);
     event MonitorUnstake(address indexed candidate, uint amt);
 
-    uint constant MIN_STAKE = 100_000 ether;
-    uint constant UNSTAKE_WINDOW = 10 days;
+    uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
+    uint constant UNSTAKE_WINDOW = 10 days;       // TODO: change this
 
     uint public lastElectionTime;  // set by Golang
     MonitorInfo[] public monitors; // read by Golang
@@ -46,7 +47,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
                           bytes32 pubkeyX,
                           bytes32 intro) public payable {
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
-        require(msg.value >= MIN_STAKE, 'deposit-too-less');
+        require(msg.value >= MIN_STAKED_AMT, 'deposit-too-less');
 
         uint monitorIdx = monitorIdxByAddr[msg.sender];
         require(monitorIdx == 0, 'monitor-existed');
@@ -85,7 +86,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
         require(monitor.stakedAmt >= amt, 'withdraw-too-much');
 
         monitor.stakedAmt -= amt;
-        if (monitor.stakedAmt < MIN_STAKE) {
+        if (monitor.stakedAmt < MIN_STAKED_AMT) {
             require(monitor.electedTime == 0, 'monitor-is-active');
             require(block.timestamp - lastElectionTime < UNSTAKE_WINDOW, "outside-unstake-window");
             // TODO: more checks
@@ -120,6 +121,13 @@ contract CCMonitorsGovForTest is CCMonitorsGov {
 }
 
 contract CCMonitorsGovForUT is CCMonitorsGov {
+
+    function getMonitorIdx(address addr) public view returns (uint) {
+        return monitorIdxByAddr[addr];
+    }
+    function getFreeSlots() public view returns (uint[] memory) {
+        return freeSlots;
+    }
 
     function setElectedTime(uint idx, uint ts) public {
         monitors[idx].electedTime = ts;
