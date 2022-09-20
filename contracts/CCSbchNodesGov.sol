@@ -11,19 +11,19 @@ contract CCSbchNodesGov {
         bytes32 certHash;
         bytes32 certUrl;
         bytes32 rpcUrl;
-        bytes32 introduction;
+        bytes32 intro;
     }
 
     struct Proposal {
         address proposer;
-        address[] newProposers;  // proposal for new proposer set
-        NodeInfo newNode; // proposal for new enclave node
-        uint obsoleteNodeId;     // proposal for obsolete enclave node
-        uint votes; // bitmap
+        address[] newProposers; // proposal for new proposer set
+        NodeInfo newNode;       // proposal for new enclave node
+        uint obsoleteNodeId;    // proposal for obsolete enclave node
+        uint votes;             // bitmap
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
-    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 introduction);
+    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 intro);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
@@ -32,17 +32,17 @@ contract CCSbchNodesGov {
     address immutable public MONITORS_GOV_ADDR;
 
     address[] public proposers;
-    mapping(address => uint) private proposerSlots; // index+1 is stored actually
+    mapping(address => uint) proposerIdxByAddr;
 
     uint public lastNodeId;
     NodeInfo[] public nodes;
-    mapping(uint => uint) nodeSlotById; // nodeId => nodeIdx+1
+    mapping(uint => uint) nodeIdxById;
 
     uint public minProposalId;
     Proposal[] public proposals;
 
     modifier onlyProposer() {
-        require(proposerSlots[msg.sender] > 0, 'not-proposer');
+        require(isProposer(msg.sender), 'not-proposer');
         _;
     }
 
@@ -90,16 +90,18 @@ contract CCSbchNodesGov {
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
-    function proposeNewNode(bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 introduction) public onlyProposer {
-        NodeInfo memory node = NodeInfo(0, certHash, certUrl, rpcUrl, introduction);
+    function proposeNewNode(bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 intro) public onlyProposer {
+        NodeInfo memory node = NodeInfo(0, certHash, certUrl, rpcUrl, intro);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
-        emit ProposeNewNode(id, msg.sender, certHash, certUrl, rpcUrl, introduction);
+        emit ProposeNewNode(id, msg.sender, certHash, certUrl, rpcUrl, intro);
     }
 
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
-        require(nodeSlotById[nodeId] > 0, 'no-such-node');
+        uint nodeIdx = nodeIdxById[nodeId];
+        require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId, 'no-such-node');
+
         proposals.push(Proposal(msg.sender, new address[](0), NodeInfo(0,'','','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
@@ -117,7 +119,7 @@ contract CCSbchNodesGov {
         emit VoteProposal(id, msg.sender, agreed);
     }
     function _vote(uint id, bool agreed) private {        
-        uint idx = proposerSlots[msg.sender] - 1;
+        uint idx = proposerIdxByAddr[msg.sender];
         uint mask = 1 << (idx & 0xff);
         if (agreed) {
             proposals[id].votes |= mask;
@@ -146,7 +148,7 @@ contract CCSbchNodesGov {
             NodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId;
             nodes.push(node);
-            nodeSlotById[node.id] = nodes.length;
+            nodeIdxById[node.id] = nodes.length - 1;
             delete proposals[id];
         } else {
             assert(proposal.obsoleteNodeId > 0);
@@ -170,7 +172,7 @@ contract CCSbchNodesGov {
     }
     function clearOldProposers() private {
         for (uint i = proposers.length; i > 0; i--) {
-            delete proposerSlots[proposers[i - 1]];
+            delete proposerIdxByAddr[proposers[i - 1]];
             proposers.pop();
         }
     }
@@ -180,22 +182,41 @@ contract CCSbchNodesGov {
         }
     }
     function setNewProposer(address proposer, uint idx) private {
-        require(proposerSlots[proposer] == 0, 'duplicated-proposer');
-        proposerSlots[proposer] = idx + 1;
+        require(!isProposer(proposer), 'duplicated-proposer');
+        proposerIdxByAddr[proposer] = idx;
         proposers.push(proposer);
+    }
+    function isProposer(address addr) private view returns (bool) {
+        uint idx = proposerIdxByAddr[addr];
+        return proposers.length > 0 && proposers[idx] == addr;
     }
 
     function removeNodeById(uint nodeId) private {
-        uint nodeIdxPlus1 = nodeSlotById[nodeId];
-        require(nodeIdxPlus1 > 0, 'invalid-node-id');
+        uint nodeIdx = nodeIdxById[nodeId];
+        require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId,
+            'no-such-node');
 
-        uint nodeIdx = nodeIdxPlus1 - 1;
         if (nodes.length > 1) {
-            nodes[nodeIdx] = nodes[nodes.length - 1];
-            nodeSlotById[nodes[nodeIdx].id] = nodeIdx + 1;
+            NodeInfo storage lastNode = nodes[nodes.length - 1];
+            nodes[nodeIdx] = lastNode;
+            nodeIdxById[lastNode.id] = nodeIdx;
         }
         nodes.pop();
-        delete nodeSlotById[nodeId];
+        delete nodeIdxById[nodeId];
+    }
+
+}
+
+contract CCSbchNodesGovForUT is CCSbchNodesGov {
+
+    constructor(address monitorsGovAddr, address[] memory _proposers) 
+        CCSbchNodesGov(monitorsGovAddr, _proposers) {}
+
+    function getProposerIdx(address addr) public view returns (uint) {
+        return proposerIdxByAddr[addr];
+    }
+    function getNodeIdx(uint id) public view returns (uint) {
+        return nodeIdxById[id];
     }
 
 }

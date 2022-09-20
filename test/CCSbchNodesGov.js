@@ -1,13 +1,36 @@
 const { expect } = require("chai");
 
 const zeroAddr = '0x0000000000000000000000000000000000000000';
-const zeroBytes32    = '0x0000000000000000000000000000000000000000000000000000000000000000';
-const testCertHash   = ethers.utils.formatBytes32String('testCertHash');
-const testCertUrl    = ethers.utils.formatBytes32String('testCertUrl');
-const testNodeRpcUrl = ethers.utils.formatBytes32String('testRpcUrl');
-const testNodeIntro  = ethers.utils.formatBytes32String('testNodeIntro');
-const testNewNode =  { id: 0, certHash: testCertHash, certUrl: testCertUrl, rpcUrl: testNodeRpcUrl, intro: testNodeIntro };
-const emptyNewNode = { id: 0, certHash: zeroBytes32,  certUrl: zeroBytes32, rpcUrl: zeroBytes32,    intro: zeroBytes32   };
+const zeroBytes32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+const testCertHash0 = ethers.utils.formatBytes32String('testCertHash0');
+const testCertHash1 = ethers.utils.formatBytes32String('testCertHash1');
+const testCertHash2 = ethers.utils.formatBytes32String('testCertHash2');
+const testCertHash3 = ethers.utils.formatBytes32String('testCertHash3');
+const testCertHash4 = ethers.utils.formatBytes32String('testCertHash4');
+const testCertUrl0  = ethers.utils.formatBytes32String('testCertUrl0');
+const testCertUrl1  = ethers.utils.formatBytes32String('testCertUrl1');
+const testCertUrl2  = ethers.utils.formatBytes32String('testCertUrl2');
+const testCertUrl3  = ethers.utils.formatBytes32String('testCertUrl3');
+const testCertUrl4  = ethers.utils.formatBytes32String('testCertUrl4');
+const testRpcUrl0   = ethers.utils.formatBytes32String('testRpcUrl0');
+const testRpcUrl1   = ethers.utils.formatBytes32String('testRpcUrl1');
+const testRpcUrl2   = ethers.utils.formatBytes32String('testRpcUrl2');
+const testRpcUrl3   = ethers.utils.formatBytes32String('testRpcUrl3');
+const testRpcUrl4   = ethers.utils.formatBytes32String('testRpcUrl4');
+const testIntro0    = ethers.utils.formatBytes32String('testIntro0');
+const testIntro1    = ethers.utils.formatBytes32String('testIntro1');
+const testIntro2    = ethers.utils.formatBytes32String('testIntro2');
+const testIntro3    = ethers.utils.formatBytes32String('testIntro3');
+const testIntro4    = ethers.utils.formatBytes32String('testIntro4');
+
+const testCertHash  = testCertHash0;
+const testCertUrl   = testCertUrl0;
+const testRpcUrl    = testRpcUrl0;
+const testIntro     = testIntro0;
+
+const testNewNode  = { id: 0, certHash: testCertHash, certUrl: testCertUrl, rpcUrl: testRpcUrl,  intro: testIntro };
+const emptyNewNode = { id: 0, certHash: zeroBytes32,  certUrl: zeroBytes32, rpcUrl: zeroBytes32, intro: zeroBytes32 };
 
 
 describe("CCSbchNodesGov", function () {
@@ -18,7 +41,7 @@ describe("CCSbchNodesGov", function () {
 
   before(async () => {
     [p1, p2, p3, p4, p5, p6] = await ethers.getSigners();
-    NodesGov = await ethers.getContractFactory("CCSbchNodesGov");
+    NodesGov = await ethers.getContractFactory("CCSbchNodesGovForUT");
     MonitorsGovMock = await ethers.getContractFactory("CCMonitorsGovMock");
   });
 
@@ -34,6 +57,8 @@ describe("CCSbchNodesGov", function () {
       .to.be.revertedWith('too-many-proposers');
     await expect(NodesGov.deploy(monitorsGovAddr, [p1.address, p2.address, p1.address]))
       .to.be.revertedWith('duplicated-proposer');
+    await expect(NodesGov.deploy(monitorsGovAddr, [p1.address, p2.address, p2.address]))
+      .to.be.revertedWith('duplicated-proposer');
   });
 
   it("init: ok", async () => {
@@ -41,6 +66,9 @@ describe("CCSbchNodesGov", function () {
     const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
     expect(await gov.getAllProposers()).to.deep.equal(proposers);
+    expect(await gov.getProposerIdx(p1.address)).to.be.equal(0);
+    expect(await gov.getProposerIdx(p2.address)).to.be.equal(1);
+    expect(await gov.getProposerIdx(p3.address)).to.be.equal(2);
   });
 
   it("propose: errors", async () => {
@@ -55,7 +83,7 @@ describe("CCSbchNodesGov", function () {
     await expect(gov.proposeNewProposers(Array(258).fill(p1.address)))
       .to.be.revertedWith('too-many-proposers');
 
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
     await expect(gov.connect(p5).proposeNewNode(...newNodeArgs))
       .to.be.revertedWith('not-proposer');
 
@@ -71,7 +99,7 @@ describe("CCSbchNodesGov", function () {
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
 
     // make 2 NewProposers proposals
     await expect(gov.connect(p1).proposeNewProposers(newProposers))
@@ -113,12 +141,12 @@ describe("CCSbchNodesGov", function () {
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
 
     // make 3 proposals
     await gov.connect(p2).proposeNewProposers(newProposers); // proposal#0
-    await gov.connect(p3).proposeNewNode(...newNodeArgs); // proposal#1
-    await gov.connect(p3).proposeNewNode(...newNodeArgs); // proposal#2
+    await gov.connect(p3).proposeNewNode(...newNodeArgs);    // proposal#1
+    await gov.connect(p3).proposeNewNode(...newNodeArgs);    // proposal#2
     await expect(gov.connect(p4).voteProposal(0, true)).to.be.revertedWith('not-proposer');
     await expect(gov.connect(p5).voteProposal(1, false)).to.be.revertedWith('not-proposer');
     await expect(gov.connect(p6).voteProposal(2, false)).to.be.revertedWith('not-proposer');
@@ -141,10 +169,10 @@ describe("CCSbchNodesGov", function () {
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
 
     await gov.connect(p2).proposeNewProposers(newProposers); // proposal#0
-    await gov.connect(p3).proposeNewNode(...newNodeArgs); // proposal#1
+    await gov.connect(p3).proposeNewNode(...newNodeArgs);    // proposal#1
 
     expect(await getAllProposals(gov)).to.deep.equal([
       { id: 0, proposer: p2.address, newProposers: newProposers, newNode: emptyNewNode, obsoleteNodeId: 0, votes:   '10' },
@@ -186,11 +214,11 @@ describe("CCSbchNodesGov", function () {
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
 
     await gov.connect(p2).proposeNewProposers(newProposers); // proposal#0
-    await gov.connect(p2).proposeNewNode(...newNodeArgs); // proposal#1
-    await gov.connect(p2).proposeNewNode(...newNodeArgs); // proposal#2
+    await gov.connect(p2).proposeNewNode(...newNodeArgs);    // proposal#1
+    await gov.connect(p2).proposeNewNode(...newNodeArgs);    // proposal#2
   
     await expect(gov.connect(p1).execProposal(3)).to.be.revertedWith('no-such-proposal');
     await expect(gov.connect(p1).execProposal(2)).to.be.revertedWith('not-enough-votes');
@@ -213,10 +241,10 @@ describe("CCSbchNodesGov", function () {
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
-    const newNodeArgs = [testCertHash, testCertUrl, testNodeRpcUrl, testNodeIntro];
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
 
     await gov.connect(p2).proposeNewProposers(newProposers); // proposal#0
-    await gov.connect(p2).proposeNewNode(...newNodeArgs); // proposal#1
+    await gov.connect(p2).proposeNewNode(...newNodeArgs);    // proposal#1
 
     expect(await getAllProposals(gov)).to.deep.equal([
       { id: 0, proposer: p2.address, newProposers: newProposers, newNode: emptyNewNode, obsoleteNodeId: 0, votes:  '10' },
@@ -237,17 +265,45 @@ describe("CCSbchNodesGov", function () {
     ]);
   });
 
+  it("exec: newProposers", async () => {
+    const proposers = [p1, p2, p3].map(x => x.address);
+    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    await gov.deployed();
+    expect(await gov.getAllProposers()).to.deep.equal(proposers);
+    expect(await gov.getProposerIdx(p1.address)).to.be.equal(0);
+    expect(await gov.getProposerIdx(p2.address)).to.be.equal(1);
+    expect(await gov.getProposerIdx(p3.address)).to.be.equal(2);
+
+    const newProposers = [p2, p3, p4].map(x => x.address);
+    const newNodeArgs = [testCertHash, testCertUrl, testRpcUrl, testIntro];
+
+    // make 5 proposals
+    await gov.connect(p1).proposeNewNode(...newNodeArgs);    // proposal#0
+    await gov.connect(p2).proposeNewNode(...newNodeArgs);    // proposal#1
+    await gov.connect(p3).proposeNewProposers(newProposers); // proposal#2
+    await gov.connect(p2).proposeNewNode(...newNodeArgs);    // proposal#3
+    await gov.connect(p1).proposeNewNode(...newNodeArgs);    // proposal#4
+    // vote & exec proposal#2  
+    await gov.connect(p1).voteProposal(2, true);
+    await gov.connect(p2).execProposal(2);
+    expect(await gov.minProposalId()).to.be.equal(5);
+    expect(await gov.getAllProposers()).to.deep.equal(newProposers);
+    expect(await gov.getProposerIdx(p2.address)).to.be.equal(0);
+    expect(await gov.getProposerIdx(p3.address)).to.be.equal(1);
+    expect(await gov.getProposerIdx(p4.address)).to.be.equal(2);
+  });
+
   it("exec: nodes", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
     const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     // create 5 NewNode proposals
-    await gov.connect(p2).proposeNewNode(bytes32('cert0'), bytes32('url0'), bytes32('rpc0'), bytes32('node0')); // proposal#0
-    await gov.connect(p2).proposeNewNode(bytes32('cert1'), bytes32('url1'), bytes32('rpc1'), bytes32('node1')); // proposal#1
-    await gov.connect(p2).proposeNewNode(bytes32('cert2'), bytes32('url2'), bytes32('rpc2'), bytes32('node2')); // proposal#2
-    await gov.connect(p2).proposeNewNode(bytes32('cert3'), bytes32('url3'), bytes32('rpc3'), bytes32('node3')); // proposal#3
-    await gov.connect(p2).proposeNewNode(bytes32('cert4'), bytes32('url4'), bytes32('rpc4'), bytes32('node4')); // proposal#4
+    await gov.connect(p2).proposeNewNode(testCertHash0, testCertUrl0, testRpcUrl0, testIntro0); // proposal#0
+    await gov.connect(p2).proposeNewNode(testCertHash1, testCertUrl1, testRpcUrl1, testIntro1); // proposal#1
+    await gov.connect(p2).proposeNewNode(testCertHash2, testCertUrl2, testRpcUrl2, testIntro2); // proposal#2
+    await gov.connect(p2).proposeNewNode(testCertHash3, testCertUrl3, testRpcUrl3, testIntro3); // proposal#3
+    await gov.connect(p2).proposeNewNode(testCertHash4, testCertUrl4, testRpcUrl4, testIntro4); // proposal#4
 
     // execute 4 of them
     await gov.connect(p1).voteProposal(1, true);
@@ -259,38 +315,54 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p1).voteProposal(4, true);
     await gov.connect(p1).execProposal(4);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
-      { id: 2, certHash: bytes32('cert3'), certUrl: bytes32('url3'), rpcUrl: bytes32('rpc3'), intro: bytes32('node3') },
-      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
-      { id: 4, certHash: bytes32('cert4'), certUrl: bytes32('url4'), rpcUrl: bytes32('rpc4'), intro: bytes32('node4') },
+      { id: 1, certHash: testCertHash1, certUrl: testCertUrl1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+      { id: 2, certHash: testCertHash3, certUrl: testCertUrl3, rpcUrl: testRpcUrl3, intro: testIntro3 },
+      { id: 3, certHash: testCertHash2, certUrl: testCertUrl2, rpcUrl: testRpcUrl2, intro: testIntro2 },
+      { id: 4, certHash: testCertHash4, certUrl: testCertUrl4, rpcUrl: testRpcUrl4, intro: testIntro4 },
     ]);
+    expect(await gov.getNodeIdx(1)).to.be.equal(0);
+    expect(await gov.getNodeIdx(2)).to.be.equal(1);
+    expect(await gov.getNodeIdx(3)).to.be.equal(2);
+    expect(await gov.getNodeIdx(4)).to.be.equal(3);
 
     // obsolete node#2
     await gov.connect(p2).proposeObsoleteNode(2); // proposal#5
     await gov.connect(p1).voteProposal(5, true);
     await expect(gov.connect(p1).execProposal(5)).to.emit(gov, 'ExecProposal').withArgs(5);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
-      { id: 4, certHash: bytes32('cert4'), certUrl: bytes32('url4'), rpcUrl: bytes32('rpc4'), intro: bytes32('node4') },
-      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+      { id: 1, certHash: testCertHash1, certUrl: testCertUrl1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+      { id: 4, certHash: testCertHash4, certUrl: testCertUrl4, rpcUrl: testRpcUrl4, intro: testIntro4 },
+      { id: 3, certHash: testCertHash2, certUrl: testCertUrl2, rpcUrl: testRpcUrl2, intro: testIntro2 },
     ]);
+    expect(await gov.getNodeIdx(1)).to.be.equal(0);
+    expect(await gov.getNodeIdx(2)).to.be.equal(0);
+    expect(await gov.getNodeIdx(3)).to.be.equal(2);
+    expect(await gov.getNodeIdx(4)).to.be.equal(1);
 
     // obsolete node#4
     await gov.connect(p2).proposeObsoleteNode(4); // proposal#6
     await gov.connect(p1).voteProposal(6, true);
     await expect(gov.connect(p1).execProposal(6)).to.emit(gov, 'ExecProposal').withArgs(6);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
-      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+      { id: 1, certHash: testCertHash1, certUrl: testCertUrl1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+      { id: 3, certHash: testCertHash2, certUrl: testCertUrl2, rpcUrl: testRpcUrl2, intro: testIntro2 },
     ]);
+    expect(await gov.getNodeIdx(1)).to.be.equal(0);
+    expect(await gov.getNodeIdx(2)).to.be.equal(0);
+    expect(await gov.getNodeIdx(3)).to.be.equal(1);
+    expect(await gov.getNodeIdx(4)).to.be.equal(0);
 
     // obsolete node#3
     await gov.connect(p2).proposeObsoleteNode(3); // proposal#7
     await gov.connect(p1).voteProposal(7, true);
     await expect(gov.connect(p1).execProposal(7)).to.emit(gov, 'ExecProposal').withArgs(7);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
+      { id: 1, certHash: testCertHash1, certUrl: testCertUrl1, rpcUrl: testRpcUrl1, intro: testIntro1 },
     ]);
+    expect(await gov.getNodeIdx(1)).to.be.equal(0);
+    expect(await gov.getNodeIdx(2)).to.be.equal(0);
+    expect(await gov.getNodeIdx(3)).to.be.equal(0);
+    expect(await gov.getNodeIdx(4)).to.be.equal(0);
 
     // obsolete node#1
     await gov.connect(p2).proposeObsoleteNode(1); // proposal#8
@@ -298,18 +370,17 @@ describe("CCSbchNodesGov", function () {
     await expect(gov.connect(p1).execProposal(8)).to.emit(gov, 'ExecProposal').withArgs(8);
     expect(await getAllNodes(gov)).to.deep.equal([
     ]);
-
   });
 
-  it("removeNodeByMonitor", async () => {
+  it("removeNodeByMonitor: ok", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
     const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
     await gov.deployed();
 
     // create 3 NewNode proposals
-    await gov.connect(p2).proposeNewNode(bytes32('cert0'), bytes32('url0'), bytes32('rpc0'), bytes32('node0')); // proposal#0
-    await gov.connect(p2).proposeNewNode(bytes32('cert1'), bytes32('url1'), bytes32('rpc1'), bytes32('node1')); // proposal#1
-    await gov.connect(p2).proposeNewNode(bytes32('cert2'), bytes32('url2'), bytes32('rpc2'), bytes32('node2')); // proposal#2
+    await gov.connect(p2).proposeNewNode(testCertHash0, testCertUrl0, testRpcUrl0, testIntro0); // proposal#0
+    await gov.connect(p2).proposeNewNode(testCertHash1, testCertUrl1, testRpcUrl1, testIntro1); // proposal#1
+    await gov.connect(p2).proposeNewNode(testCertHash2, testCertUrl2, testRpcUrl2, testIntro2); // proposal#2
     await gov.connect(p1).voteProposal(0, true);
     await gov.connect(p1).execProposal(0);
     await gov.connect(p1).voteProposal(1, true);
@@ -317,18 +388,20 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p1).voteProposal(2, true);
     await gov.connect(p1).execProposal(2);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert0'), certUrl: bytes32('url0'), rpcUrl: bytes32('rpc0'), intro: bytes32('node0') },
-      { id: 2, certHash: bytes32('cert1'), certUrl: bytes32('url1'), rpcUrl: bytes32('rpc1'), intro: bytes32('node1') },
-      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+      { id: 1, certHash: testCertHash0, certUrl: testCertUrl0, rpcUrl: testRpcUrl0, intro: testIntro0 },
+      { id: 2, certHash: testCertHash1, certUrl: testCertUrl1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+      { id: 3, certHash: testCertHash2, certUrl: testCertUrl2, rpcUrl: testRpcUrl2, intro: testIntro2 },
     ]);
 
     await expect(gov.connect(p3).removeNode(1)).to.be.revertedWith('not-monitor');
 
     await monitorsGovMock.connect(p5).becomeMonitor();
+    await expect(gov.connect(p5).removeNode(9)).to.be.revertedWith('no-such-node');
+
     await expect(gov.connect(p5).removeNode(2)).to.emit(gov, 'RemoveNodeByMonitor').withArgs(2, p5.address);
     expect(await getAllNodes(gov)).to.deep.equal([
-      { id: 1, certHash: bytes32('cert0'), certUrl: bytes32('url0'), rpcUrl: bytes32('rpc0'), intro: bytes32('node0') },
-      { id: 3, certHash: bytes32('cert2'), certUrl: bytes32('url2'), rpcUrl: bytes32('rpc2'), intro: bytes32('node2') },
+      { id: 1, certHash: testCertHash0, certUrl: testCertUrl0, rpcUrl: testRpcUrl0, intro: testIntro0 },
+      { id: 3, certHash: testCertHash2, certUrl: testCertUrl2, rpcUrl: testRpcUrl2, intro: testIntro2 },
     ]);
   });
 
@@ -356,7 +429,7 @@ async function getProposal(gov, id) {
     certHash: newNode.certHash,
     certUrl: newNode.certUrl,
     rpcUrl: newNode.rpcUrl,
-    intro: newNode.introduction,
+    intro: newNode.intro,
   }
   obsoleteNodeId = obsoleteNodeId.toNumber();
   votes = BigInt(votes.toString()).toString(2)
@@ -377,12 +450,7 @@ async function getAllNodes(gov) {
   return nodes;
 }
 async function getNode(gov, idx) {
-  let [id, certHash, certUrl, rpcUrl, introduction] = await gov.nodes(idx);
+  let [id, certHash, certUrl, rpcUrl, intro] = await gov.nodes(idx);
   id = id.toNumber();
-  return {id, certHash, certUrl, rpcUrl, intro: introduction};
-}
-
-
-function bytes32(str) {
-  return ethers.utils.formatBytes32String(str);
+  return {id, certHash, certUrl, rpcUrl, intro};
 }
