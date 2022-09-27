@@ -17,6 +17,11 @@ module.exports = {
       accounts: {
         accountsBalance: '10000000000000000000000000', // 10000000 ethers
       }
+    },
+    sbch_local: {
+      url: `http://localhost:8545`,
+      gasPrice: 10500000000,
+      accounts: [process.env.KEY || '0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9']
     }
   }
 };

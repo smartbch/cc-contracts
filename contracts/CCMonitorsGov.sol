@@ -104,7 +104,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
 }
 
 
-contract CCMonitorsGovForTest is CCMonitorsGov {
+contract CCMonitorsGovForStorageTest is CCMonitorsGov {
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
@@ -135,6 +135,49 @@ contract CCMonitorsGovForUT is CCMonitorsGov {
 
     function setLastElectionTime() public {
         lastElectionTime = block.timestamp;
+    }
+
+}
+
+contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
+
+    function setLastElectionTime(uint ts) public {
+        lastElectionTime = ts;
+    }
+
+    function addMonitor(address addr,
+                        bytes calldata pubkey,
+                        bytes32 intro,
+                        uint stakedAmt,
+                        uint electedTime) public {
+        require(pubkey.length == 33, 'invalid-pubkey');
+        uint pubkeyPrefix = uint(uint8(pubkey[0]));
+        bytes32 pubkeyX = bytes32(pubkey[1:]);
+
+        if (monitors.length > 0) {
+          uint idx = monitorIdxByAddr[addr];
+          require(monitors[idx].addr != addr, 'existed-monitor');
+        }
+
+        monitors.push(MonitorInfo(addr, pubkeyPrefix, pubkeyX,
+            intro, stakedAmt, electedTime));
+        monitorIdxByAddr[addr] = monitors.length - 1;
+    }
+
+    function updateMonitor(address addr,
+                        bytes calldata pubkey,
+                        uint stakedAmt,
+                        uint electedTime) public {
+        require(pubkey.length == 33, 'invalid-pubkey');
+        uint pubkeyPrefix = uint(uint8(pubkey[0]));
+        bytes32 pubkeyX = bytes32(pubkey[1:]);
+
+        uint idx = monitorIdxByAddr[addr];
+        require(monitors[idx].addr == addr, 'no-such-monitor');
+        bytes32 intro = monitors[idx].intro;
+
+        monitors[idx] = MonitorInfo(addr, pubkeyPrefix, pubkeyX,
+            intro, stakedAmt, electedTime);
     }
 
 }

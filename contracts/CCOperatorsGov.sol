@@ -116,7 +116,7 @@ contract CCOperatorsGov {
 }
 
 
-contract CCOperatorsGovForTest is CCOperatorsGov {
+contract CCOperatorsGovForStorageTest is CCOperatorsGov {
 
     function addOperator(uint pubkeyPrefix,
                          bytes32 pubkeyX,
@@ -127,6 +127,7 @@ contract CCOperatorsGovForTest is CCOperatorsGov {
         operators.push(OperatorInfo(msg.sender, 
             pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0));
     }
+
     function removeLastOperator() public {
     	operators.pop();
     }
@@ -144,6 +145,49 @@ contract CCOperatorsGovForUT is CCOperatorsGov {
 
     function setElectedTime(uint opIdx, uint ts) public {
         operators[opIdx].electedTime = ts;
+    }
+
+}
+
+contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
+
+    function addOperator(address addr,
+                         bytes calldata pubkey,
+                         bytes32 rpcUrl, 
+                         bytes32 intro,
+                         uint totalStakedAmt,
+                         uint selfStakedAmt,
+                         uint electedTime) public {
+        require(pubkey.length == 33, 'invalid-pubkey');
+        uint pubkeyPrefix = uint(uint8(pubkey[0]));
+        bytes32 pubkeyX = bytes32(pubkey[1:]);
+
+        if (operators.length > 0) {
+          uint idx = operatorIdxByAddr[addr];
+          require(operators[idx].addr != addr, 'existed-operator');
+        }
+
+        operators.push(OperatorInfo(addr, pubkeyPrefix, pubkeyX,
+            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime));
+        operatorIdxByAddr[addr] = operators.length - 1;
+    }
+
+    function updateOperator(address addr,
+                         bytes calldata pubkey,
+                         uint totalStakedAmt,
+                         uint selfStakedAmt,
+                         uint electedTime) public {
+        require(pubkey.length == 33, 'invalid-pubkey');
+        uint pubkeyPrefix = uint(uint8(pubkey[0]));
+        bytes32 pubkeyX = bytes32(pubkey[1:]);
+
+        uint idx = operatorIdxByAddr[addr];
+        require(operators[idx].addr == addr, 'no-such-operator');
+        bytes32 rpcUrl = operators[idx].rpcUrl;
+        bytes32 intro = operators[idx].intro;
+
+        operators[idx]= OperatorInfo(addr, pubkeyPrefix, pubkeyX,
+            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime);
     }
 
 }
