@@ -90,13 +90,15 @@ async function deployGovContracts() {
   const CCMonitorsGov = await hre.ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
   const ccMonitorsGov = await CCMonitorsGov.deploy();
   await ccMonitorsGov.deployed();
-  console.log("CCMonitorsGov deployed to:", ccMonitorsGov.address);
+  const ccMonitorsSeq = await ccMonitorsGov.provider.send('debug_getSeq', [ccMonitorsGov.address]);
+  console.log("CCMonitorsGov deployed to:", ccMonitorsGov.address, "SEQ:", ccMonitorsSeq);
 
   // deploy CCOperatorsGov
   const CCOperatorsGov = await hre.ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
   const ccOperatorsGov = await CCOperatorsGov.deploy();
   await ccOperatorsGov.deployed();
-  console.log("CCOperatorsGov deployed to:", ccOperatorsGov.address);
+  const ccOperatorsSeq = await ccOperatorsGov.provider.send('debug_getSeq', [ccOperatorsGov.address]);
+  console.log("CCOperatorsGov deployed to:", ccOperatorsGov.address, "SEQ:", ccOperatorsSeq);
 }
 
 
