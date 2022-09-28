@@ -191,7 +191,7 @@ contract CCSbchNodesGov {
         return proposers.length > 0 && proposers[idx] == addr;
     }
 
-    function removeNodeById(uint nodeId) private {
+    function removeNodeById(uint nodeId) internal {
         uint nodeIdx = nodeIdxById[nodeId];
         require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId,
             'no-such-node');
@@ -234,3 +234,23 @@ contract CCMonitorsGovMock is ICCMonitorsGov {
     }
 
 }
+
+contract CCSbchNodesGovForIntegrationTest is CCSbchNodesGov {
+
+    constructor() CCSbchNodesGov(address(0x0), new address[](1)) {}
+
+    function addNode(bytes32 certHash,
+                     bytes32 certUrl,
+                     bytes32 rpcUrl,
+                     bytes32 intro) public {
+        uint id = nodes.length + 1;
+        nodes.push(NodeInfo(id, certHash, certUrl, rpcUrl, intro));
+        nodeIdxById[id] = id - 1;
+    }
+
+    function delNode(uint id) public {
+        removeNodeById(id);
+    }
+
+}
+
