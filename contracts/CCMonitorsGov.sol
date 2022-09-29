@@ -13,12 +13,13 @@ interface ICCMonitorsGov {
 contract CCMonitorsGov is ICCMonitorsGov {
 
     struct MonitorInfo {
-        address addr;         // address
-        uint    pubkeyPrefix; // 0x02 or 0x03
-        bytes32 pubkeyX;      // x
-        bytes32 intro;        // introduction
-        uint    stakedAmt;    // staked BCH
-        uint    electedTime;  // 0 means not elected, set by Golang
+        address addr;           // address
+        uint    pubkeyPrefix;   // 0x02 or 0x03
+        bytes32 pubkeyX;        // x
+        bytes32 intro;          // introduction
+        uint    stakedAmt;      // staked BCH
+        uint    electedTime;    // 0 means not elected, set by Golang
+        uint    oldElectedTime; // used to get old monitors, set by Golang
     }
 
     event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
@@ -58,10 +59,10 @@ contract CCMonitorsGov is ICCMonitorsGov {
         if (freeSlots.length > 0) {
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
-            monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0);
+            monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0);
             monitorIdxByAddr[msg.sender] = freeSlot;
         } else {
-            monitors.push(MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0));
+            monitors.push(MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0));
             monitorIdxByAddr[msg.sender] = monitors.length - 1;
         }
 
@@ -115,7 +116,7 @@ contract CCMonitorsGovForStorageTest is CCMonitorsGov {
                         bytes32 intro,
                         uint stakedAmt) public {
         monitors.push(MonitorInfo(msg.sender, 
-            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0));
+            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0, 0));
     }
 
 }
@@ -160,7 +161,7 @@ contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
         }
 
         monitors.push(MonitorInfo(addr, pubkeyPrefix, pubkeyX,
-            intro, stakedAmt, electedTime));
+            intro, stakedAmt, electedTime, 0));
         monitorIdxByAddr[addr] = monitors.length - 1;
     }
 
@@ -177,7 +178,7 @@ contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
         bytes32 intro = monitors[idx].intro;
 
         monitors[idx] = MonitorInfo(addr, pubkeyPrefix, pubkeyX,
-            intro, stakedAmt, electedTime);
+            intro, stakedAmt, electedTime, 0);
     }
 
 }

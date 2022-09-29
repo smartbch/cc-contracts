@@ -15,6 +15,7 @@ contract CCOperatorsGov {
         uint    totalStakedAmt; // total staked BCH
         uint    selfStakedAmt;  // self staked BCH
         uint    electedTime;    // 0 means not elected, set by Golang
+        uint    oldElectedTime; // used to get old operators, set by Golang
     }
 
     struct StakeInfo {
@@ -31,6 +32,7 @@ contract CCOperatorsGov {
     uint public constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
     uint public constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
 
+    //uint public lastElectionTime;
     OperatorInfo[] public operators; // read by Golang
     mapping(address => uint) operatorIdxByAddr;
     uint[] freeSlots;
@@ -54,10 +56,10 @@ contract CCOperatorsGov {
         if (freeSlots.length > 0) {
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
-            operators[freeSlot] = OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0);
+            operators[freeSlot] = OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0);
             operatorIdxByAddr[msg.sender] = freeSlot;
         } else {
-            operators.push(OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0));
+            operators.push(OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0));
             operatorIdxByAddr[msg.sender] = operators.length - 1;
         }
 
@@ -125,7 +127,7 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
                          uint totalStakedAmt,
                          uint selfStakedAmt) public {
         operators.push(OperatorInfo(msg.sender, 
-            pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0));
+            pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0, 0));
     }
 
     function removeLastOperator() public {
@@ -168,7 +170,7 @@ contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
         }
 
         operators.push(OperatorInfo(addr, pubkeyPrefix, pubkeyX,
-            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime));
+            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, 0));
         operatorIdxByAddr[addr] = operators.length - 1;
     }
 
@@ -187,7 +189,7 @@ contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
         bytes32 intro = operators[idx].intro;
 
         operators[idx]= OperatorInfo(addr, pubkeyPrefix, pubkeyX,
-            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime);
+            rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, 0);
     }
 
 }
