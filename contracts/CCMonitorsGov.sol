@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/Address.sol";
+import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 // import "hardhat/console.sol";
 
 interface ICCMonitorsGov {
@@ -13,26 +14,44 @@ interface ICCMonitorsGov {
 contract CCMonitorsGov is ICCMonitorsGov {
 
     struct MonitorInfo {
-        address addr;           // address
-        uint    pubkeyPrefix;   // 0x02 or 0x03
-        bytes32 pubkeyX;        // x
-        bytes32 intro;          // introduction
-        uint    stakedAmt;      // staked BCH
-        uint    electedTime;    // 0 means not elected, set by Golang
-        uint    oldElectedTime; // used to get old monitors, set by Golang
+        address   addr;           // address
+        uint      pubkeyPrefix;   // 0x02 or 0x03
+        bytes32   pubkeyX;        // x
+        bytes32   intro;          // introduction
+        uint      stakedAmt;      // staked BCH
+        uint      electedTime;    // 0 means not elected, set by Golang
+        uint      oldElectedTime; // used to get old monitors, set by Golang
+        address[] nominatedBy;    // length of nominatedBy is read by Golang
     }
 
     event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
     event MonitorStake(address indexed candidate, uint amt);
     event MonitorUnstake(address indexed candidate, uint amt);
+    event NominatedBy(address indexed candidate, address operator);
 
     uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
     uint constant UNSTAKE_WINDOW = 10 days;       // TODO: change this
+
+    address immutable OPERATORS_GOV_ADDR;
 
     uint public lastElectionTime;  // set by Golang
     MonitorInfo[] public monitors; // read by Golang
     mapping(address => uint) monitorIdxByAddr;
     uint[] freeSlots;
+
+    constructor(address operatorsGovAddr) {
+        OPERATORS_GOV_ADDR = operatorsGovAddr;
+    }
+
+    modifier onlyOperator() {
+        require(ICCOperatorsGov(OPERATORS_GOV_ADDR).isOperator(msg.sender), 'not-operator');
+        _;
+    }
+
+    function getNominatedBy(address addr) public view returns (address[] memory) {
+        (MonitorInfo storage monitor,) = loadMonitorInfo(addr);
+        return monitor.nominatedBy;
+    }
 
     function isMonitor(address addr) external view override returns (bool) {
         if (monitors.length == 0) {
@@ -59,10 +78,10 @@ contract CCMonitorsGov is ICCMonitorsGov {
         if (freeSlots.length > 0) {
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
-            monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0);
+            monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0, new address[](0));
             monitorIdxByAddr[msg.sender] = freeSlot;
         } else {
-            monitors.push(MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0));
+            monitors.push(MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0, new address[](0)));
             monitorIdxByAddr[msg.sender] = monitors.length - 1;
         }
 
@@ -70,20 +89,14 @@ contract CCMonitorsGov is ICCMonitorsGov {
     }
 
     function addStake() public payable {
-        require(monitors.length > 0, 'not-monitor');
-        uint monitorIdx = monitorIdxByAddr[msg.sender];
-        MonitorInfo storage monitor = monitors[monitorIdx];
-        require(monitor.addr == msg.sender, 'not-monitor');
+        (MonitorInfo storage monitor,) = loadMonitorInfo(msg.sender);
         require(msg.value > 0, 'deposit-nothing');
         monitor.stakedAmt += msg.value;
         emit MonitorStake(msg.sender, msg.value);
     }
 
     function removeStake(uint amt) public {
-        require(monitors.length > 0, 'not-monitor');
-        uint monitorIdx = monitorIdxByAddr[msg.sender];
-        MonitorInfo storage monitor = monitors[monitorIdx];
-        require(monitor.addr == msg.sender, 'not-monitor');
+        (MonitorInfo storage monitor, uint monitorIdx) = loadMonitorInfo(msg.sender);
         require(monitor.stakedAmt >= amt, 'withdraw-too-much');
 
         monitor.stakedAmt -= amt;
@@ -102,10 +115,30 @@ contract CCMonitorsGov is ICCMonitorsGov {
         emit MonitorUnstake(msg.sender, amt);
     }
 
+    function nominateMonitor(address addr) public onlyOperator {
+        (MonitorInfo storage monitor,) = loadMonitorInfo(addr);
+
+        for (uint i = 0; i < monitor.nominatedBy.length; i++) {
+            require(monitor.nominatedBy[i] != msg.sender, 'already-nominated');
+        }
+
+        monitor.nominatedBy.push(msg.sender);
+        emit NominatedBy(addr, msg.sender);
+    }
+
+    function loadMonitorInfo(address addr) private view returns (
+            MonitorInfo storage monitor, uint monitorIdx) {
+
+        require(monitors.length > 0, 'not-monitor');
+        monitorIdx = monitorIdxByAddr[addr];
+        monitor = monitors[monitorIdx];
+        require(monitor.addr == addr, 'not-monitor');
+    }
+
 }
 
 
-contract CCMonitorsGovForStorageTest is CCMonitorsGov {
+contract CCMonitorsGovForStorageTest is CCMonitorsGov(address(0x0)) {
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
@@ -116,12 +149,14 @@ contract CCMonitorsGovForStorageTest is CCMonitorsGov {
                         bytes32 intro,
                         uint stakedAmt) public {
         monitors.push(MonitorInfo(msg.sender, 
-            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0, 0));
+            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0, 0, new address[](0)));
     }
 
 }
 
 contract CCMonitorsGovForUT is CCMonitorsGov {
+
+    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
 
     function getMonitorIdx(address addr) public view returns (uint) {
         return monitorIdxByAddr[addr];
@@ -140,7 +175,7 @@ contract CCMonitorsGovForUT is CCMonitorsGov {
 
 }
 
-contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
+contract CCMonitorsGovForIntegrationTest is CCMonitorsGov(address(0x0)) {
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
@@ -161,7 +196,7 @@ contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
         }
 
         monitors.push(MonitorInfo(addr, pubkeyPrefix, pubkeyX,
-            intro, stakedAmt, electedTime, 0));
+            intro, stakedAmt, electedTime, 0, new address[](0)));
         monitorIdxByAddr[addr] = monitors.length - 1;
     }
 
@@ -178,7 +213,7 @@ contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
         bytes32 intro = monitors[idx].intro;
 
         monitors[idx] = MonitorInfo(addr, pubkeyPrefix, pubkeyX,
-            intro, stakedAmt, electedTime, 0);
+            intro, stakedAmt, electedTime, 0, new address[](0));
     }
 
 }

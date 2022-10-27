@@ -29,10 +29,13 @@ describe("CCMonitorsGov", function () {
   async function deployGov() {
     const [mo1, mo2, mo3, mo4, mo5, mo6] = await ethers.getSigners();
 
-    const OpsGov = await ethers.getContractFactory("CCMonitorsGovForUT");
-    const gov = await OpsGov.deploy();
+    const MockOpsGov = await ethers.getContractFactory("CCOperatorsGovMock");
+    const opsGov = await MockOpsGov.deploy();
 
-    return { gov, mo1, mo2, mo3, mo4, mo5, mo6 };
+    const MoitorsGov = await ethers.getContractFactory("CCMonitorsGovForUT");
+    const gov = await MoitorsGov.deploy(opsGov.address);
+
+    return { gov, mo1, mo2, mo3, mo4, mo5, mo6, opsGov };
   }
 
   it("applyMonitor: invalid-pubkey-prefix", async () => {
@@ -254,6 +257,33 @@ describe("CCMonitorsGov", function () {
     expect(await gov.isMonitor(mo3.address)).to.be.equal(false);
     expect(await gov.isMonitor(mo4.address)).to.be.equal(false);
     expect(await gov.isMonitor(mo5.address)).to.be.equal(false);
+  });
+
+  it("nominateMonitor", async () => {
+    const { gov, mo1, mo2, mo3, mo4, mo5, mo6, opsGov } = await loadFixture(deployGov);
+    let [op1, op2] = [mo5, mo6];
+    await opsGov.connect(op1).becomeOperator();
+    await opsGov.connect(op2).becomeOperator();
+
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
+
+    await expect(gov.connect(mo3).nominateMonitor(mo4.address))
+        .to.be.revertedWith('not-operator');
+    await expect(gov.connect(op1).nominateMonitor(mo4.address))
+        .to.be.revertedWith('not-monitor');
+
+    await expect(gov.connect(op2).nominateMonitor(mo2.address))
+        .to.emit(gov, 'NominatedBy').withArgs(mo2.address, op2.address);
+    await expect(gov.connect(op1).nominateMonitor(mo2.address))
+        .to.emit(gov, 'NominatedBy').withArgs(mo2.address, op1.address);
+    await expect(gov.connect(op2).nominateMonitor(mo2.address))
+        .to.be.revertedWith('already-nominated');
+
+    expect(await gov.getNominatedBy(mo1.address)).to.be.deep.equal([]);
+    expect(await gov.getNominatedBy(mo3.address)).to.be.deep.equal([]);
+    expect(await gov.getNominatedBy(mo2.address)).to.be.deep.equal([op2.address, op1.address]);
   });
 
 });
