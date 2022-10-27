@@ -221,20 +221,6 @@ contract CCSbchNodesGovForUT is CCSbchNodesGov {
 
 }
 
-contract CCMonitorsGovMock is ICCMonitorsGov {
-
-    mapping(address => bool) monitors;
-
-    function isMonitor(address addr) external view override returns (bool) {
-        return monitors[addr];
-    }
-
-    function becomeMonitor() public {
-        monitors[msg.sender] = true;
-    }
-
-}
-
 contract CCSbchNodesGovForIntegrationTest is CCSbchNodesGov {
 
     constructor() CCSbchNodesGov(address(0x0), new address[](1)) {}
