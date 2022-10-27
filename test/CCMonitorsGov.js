@@ -27,12 +27,12 @@ const minStakedAmt = ethers.utils.parseUnits('100000');
 describe("CCMonitorsGov", function () {
 
   async function deployGov() {
-    const [op1, op2, op3, op4, op5, op6] = await ethers.getSigners();
+    const [mo1, mo2, mo3, mo4, mo5, mo6] = await ethers.getSigners();
 
     const OpsGov = await ethers.getContractFactory("CCMonitorsGovForUT");
     const gov = await OpsGov.deploy();
 
-    return { gov, op1, op2, op3, op4, op5, op6 };
+    return { gov, mo1, mo2, mo3, mo4, mo5, mo6 };
   }
 
   it("applyMonitor: invalid-pubkey-prefix", async () => {
@@ -54,8 +54,8 @@ describe("CCMonitorsGov", function () {
   });
 
   it("applyMonitor: monitor-existed", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
-    for (const op of [op1, op2, op3]) {
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+    for (const op of [mo1, mo2, mo3]) {
       const args = [0x02, testPkX, testIntro, {value: minStakedAmt}];
       await gov.connect(op).applyMonitor(...args); // ok
       await expect(gov.connect(op).applyMonitor(...args))
@@ -64,196 +64,196 @@ describe("CCMonitorsGov", function () {
   });
 
   it("applyMonitor: ok", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
 
-    await expect(gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)}))
-        .to.emit(gov, 'MonitorApply').withArgs(op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1));
+    await expect(gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)}))
+        .to.emit(gov, 'MonitorApply').withArgs(mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1));
 
-    await expect(gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)}))
-        .to.emit(gov, 'MonitorApply').withArgs(op2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2));
+    await expect(gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)}))
+        .to.emit(gov, 'MonitorApply').withArgs(mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2));
 
-    await expect(gov.connect(op3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)}))
-        .to.emit(gov, 'MonitorApply').withArgs(op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3));
+    await expect(gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)}))
+        .to.emit(gov, 'MonitorApply').withArgs(mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3));
 
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
-      [op2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
+      [mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
     ]);
 
-    expect(await gov.getMonitorIdx(op1.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op2.address)).to.be.equal(1);
-    expect(await gov.getMonitorIdx(op3.address)).to.be.equal(2);
+    expect(await gov.getMonitorIdx(mo1.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo2.address)).to.be.equal(1);
+    expect(await gov.getMonitorIdx(mo3.address)).to.be.equal(2);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(6));
   });
 
   it("addStake: errors", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
 
-    await expect(gov.connect(op1).addStake())
+    await expect(gov.connect(mo1).addStake())
         .to.be.revertedWith('not-monitor');
 
-    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await expect(gov.connect(op2).addStake())
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await expect(gov.connect(mo2).addStake())
         .to.be.revertedWith('not-monitor');
-    await expect(gov.connect(op3).addStake())
+    await expect(gov.connect(mo3).addStake())
         .to.be.revertedWith('not-monitor');
-    await expect(gov.connect(op1).addStake())
+    await expect(gov.connect(mo1).addStake())
         .to.be.revertedWith('deposit-nothing');
   });
 
   it("addStake: ok", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
-    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
-    await gov.connect(op3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(6));
 
-    await expect(gov.connect(op1).addStake({value: 100}))
-        .to.emit(gov, 'MonitorStake').withArgs(op1.address, 100);
-    await expect(gov.connect(op2).addStake({value: 200}))
-        .to.emit(gov, 'MonitorStake').withArgs(op2.address, 200);
-    await expect(gov.connect(op3).addStake({value: 300}))
-        .to.emit(gov, 'MonitorStake').withArgs(op3.address, 300);
+    await expect(gov.connect(mo1).addStake({value: 100}))
+        .to.emit(gov, 'MonitorStake').withArgs(mo1.address, 100);
+    await expect(gov.connect(mo2).addStake({value: 200}))
+        .to.emit(gov, 'MonitorStake').withArgs(mo2.address, 200);
+    await expect(gov.connect(mo3).addStake({value: 300}))
+        .to.emit(gov, 'MonitorStake').withArgs(mo3.address, 300);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(606));
 
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(101), 0],
-      [op2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(202), 0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(303), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(101), 0],
+      [mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(202), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(303), 0],
     ]);
   });
 
   it("removeStake: errors", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
 
-    await expect(gov.connect(op1).removeStake(123))
+    await expect(gov.connect(mo1).removeStake(123))
         .to.be.revertedWith('not-monitor');
 
-    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await gov.connect(op2).applyMonitor(0x02, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x02, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
 
-    await expect(gov.connect(op3).removeStake(123))
+    await expect(gov.connect(mo3).removeStake(123))
         .to.be.revertedWith('not-monitor');
-    await expect(gov.connect(op1).removeStake(minStakedAmt.add(2)))
+    await expect(gov.connect(mo1).removeStake(minStakedAmt.add(2)))
         .to.be.revertedWith('withdraw-too-much');
-    await expect(gov.connect(op2).removeStake(minStakedAmt.add(100)))
+    await expect(gov.connect(mo2).removeStake(minStakedAmt.add(100)))
         .to.be.revertedWith('withdraw-too-much');
 
     await gov.setElectedTime(1, 123456789);
-    await expect(gov.connect(op2).removeStake(123))
+    await expect(gov.connect(mo2).removeStake(123))
         .to.be.revertedWith('monitor-is-active');
-    await expect(gov.connect(op1).removeStake(123))
+    await expect(gov.connect(mo1).removeStake(123))
         .to.be.revertedWith('outside-unstake-window');
   });
 
   it("removeStake: ok", async () => {
-    const { gov, op1, op2, op3, op4, op5, op6 } = await loadFixture(deployGov);
+    const { gov, mo1, mo2, mo3, mo4, mo5, mo6 } = await loadFixture(deployGov);
 
-    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
-    await gov.connect(op3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
-    await gov.connect(op4).applyMonitor(0x03, testPkX4, testIntro4, {value: minStakedAmt.add(4)});
-    await gov.connect(op5).applyMonitor(0x02, testPkX5, testIntro5, {value: minStakedAmt.add(5)});
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
+    await gov.connect(mo4).applyMonitor(0x03, testPkX4, testIntro4, {value: minStakedAmt.add(4)});
+    await gov.connect(mo5).applyMonitor(0x02, testPkX5, testIntro5, {value: minStakedAmt.add(5)});
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
-      [op2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
-      [op4.address, 0x03, testPkX4, testIntro4, minStakedAmt.add(4), 0],
-      [op5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
+      [mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
+      [mo4.address, 0x03, testPkX4, testIntro4, minStakedAmt.add(4), 0],
+      [mo5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
     ]);
-    expect(await gov.getMonitorIdx(op1.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op2.address)).to.be.equal(1);
-    expect(await gov.getMonitorIdx(op3.address)).to.be.equal(2);
-    expect(await gov.getMonitorIdx(op4.address)).to.be.equal(3);
-    expect(await gov.getMonitorIdx(op5.address)).to.be.equal(4);
+    expect(await gov.getMonitorIdx(mo1.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo2.address)).to.be.equal(1);
+    expect(await gov.getMonitorIdx(mo3.address)).to.be.equal(2);
+    expect(await gov.getMonitorIdx(mo4.address)).to.be.equal(3);
+    expect(await gov.getMonitorIdx(mo5.address)).to.be.equal(4);
     expect(await gov.getFreeSlots()).to.deep.equal([]);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(5).add(15));
 
     await gov.setLastElectionTime();
-    await expect(gov.connect(op4).removeStake(5))
-        .to.emit(gov, 'MonitorUnstake').withArgs(op4.address, 5);
-    await expect(gov.connect(op2).removeStake(minStakedAmt.add(2))) // remove all
-        .to.emit(gov, 'MonitorUnstake').withArgs(op2.address, minStakedAmt.add(2));
+    await expect(gov.connect(mo4).removeStake(5))
+        .to.emit(gov, 'MonitorUnstake').withArgs(mo4.address, 5);
+    await expect(gov.connect(mo2).removeStake(minStakedAmt.add(2))) // remove all
+        .to.emit(gov, 'MonitorUnstake').withArgs(mo2.address, minStakedAmt.add(2));
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
       [zeroAddr,    0x00, zeroBytes32, zeroBytes32,              0,  0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
-      [op4.address, 0x03, testPkX4, testIntro4, minStakedAmt.sub(1), 0],
-      [op5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
+      [mo4.address, 0x03, testPkX4, testIntro4, minStakedAmt.sub(1), 0],
+      [mo5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
     ]);
-    expect(await gov.getMonitorIdx(op1.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op2.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op3.address)).to.be.equal(2);
-    expect(await gov.getMonitorIdx(op4.address)).to.be.equal(3);
-    expect(await gov.getMonitorIdx(op5.address)).to.be.equal(4);
+    expect(await gov.getMonitorIdx(mo1.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo2.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo3.address)).to.be.equal(2);
+    expect(await gov.getMonitorIdx(mo4.address)).to.be.equal(3);
+    expect(await gov.getMonitorIdx(mo5.address)).to.be.equal(4);
     expect(await gov.getFreeSlots()).to.deep.equal([1]);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(4).add(8));
 
-    await expect(gov.connect(op4).removeStake(minStakedAmt.sub(1))) // remove all
-        .to.emit(gov, 'MonitorUnstake').withArgs(op4.address, minStakedAmt.sub(1));
+    await expect(gov.connect(mo4).removeStake(minStakedAmt.sub(1))) // remove all
+        .to.emit(gov, 'MonitorUnstake').withArgs(mo4.address, minStakedAmt.sub(1));
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
       [zeroAddr,    0x00, zeroBytes32, zeroBytes32,              0,  0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
       [zeroAddr,    0x00, zeroBytes32, zeroBytes32,              0,  0],
-      [op5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
+      [mo5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
     ]);
-    expect(await gov.getMonitorIdx(op1.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op2.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op3.address)).to.be.equal(2);
-    expect(await gov.getMonitorIdx(op4.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op5.address)).to.be.equal(4);
+    expect(await gov.getMonitorIdx(mo1.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo2.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo3.address)).to.be.equal(2);
+    expect(await gov.getMonitorIdx(mo4.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo5.address)).to.be.equal(4);
     expect(await gov.getFreeSlots()).to.deep.equal([1, 3]);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(9));
 
-    await gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
-    await gov.connect(op4).applyMonitor(0x03, testPkX4, testIntro4, {value: minStakedAmt.add(4)});
-    await gov.connect(op6).applyMonitor(0x02, testPkX6, testIntro6, {value: minStakedAmt.add(6)});
+    await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo4).applyMonitor(0x03, testPkX4, testIntro4, {value: minStakedAmt.add(4)});
+    await gov.connect(mo6).applyMonitor(0x02, testPkX6, testIntro6, {value: minStakedAmt.add(6)});
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
-      [op1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
-      [op4.address, 0x03, testPkX4, testIntro4, minStakedAmt.add(4), 0],
-      [op3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
-      [op2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
-      [op5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
-      [op6.address, 0x02, testPkX6, testIntro6, minStakedAmt.add(6), 0],
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(1), 0],
+      [mo4.address, 0x03, testPkX4, testIntro4, minStakedAmt.add(4), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(3), 0],
+      [mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(2), 0],
+      [mo5.address, 0x02, testPkX5, testIntro5, minStakedAmt.add(5), 0],
+      [mo6.address, 0x02, testPkX6, testIntro6, minStakedAmt.add(6), 0],
     ]);
-    expect(await gov.getMonitorIdx(op1.address)).to.be.equal(0);
-    expect(await gov.getMonitorIdx(op2.address)).to.be.equal(3);
-    expect(await gov.getMonitorIdx(op3.address)).to.be.equal(2);
-    expect(await gov.getMonitorIdx(op4.address)).to.be.equal(1);
-    expect(await gov.getMonitorIdx(op5.address)).to.be.equal(4);
-    expect(await gov.getMonitorIdx(op6.address)).to.be.equal(5);
+    expect(await gov.getMonitorIdx(mo1.address)).to.be.equal(0);
+    expect(await gov.getMonitorIdx(mo2.address)).to.be.equal(3);
+    expect(await gov.getMonitorIdx(mo3.address)).to.be.equal(2);
+    expect(await gov.getMonitorIdx(mo4.address)).to.be.equal(1);
+    expect(await gov.getMonitorIdx(mo5.address)).to.be.equal(4);
+    expect(await gov.getMonitorIdx(mo6.address)).to.be.equal(5);
     expect(await gov.getFreeSlots()).to.deep.equal([]);
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(6).add(21));
   });
 
   it("isMonitor", async () => {
-    const { gov, op1, op2, op3, op4, op5 } = await loadFixture(deployGov);
-    expect(await gov.isMonitor(op1.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+    const { gov, mo1, mo2, mo3, mo4, mo5 } = await loadFixture(deployGov);
+    expect(await gov.isMonitor(mo1.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo5.address)).to.be.equal(false);
 
-    await gov.connect(op1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await gov.connect(op2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
-    await gov.connect(op3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
-    expect(await gov.isMonitor(op1.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
+    expect(await gov.isMonitor(mo1.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo5.address)).to.be.equal(false);
 
     await gov.setElectedTime(0, 123456789);
     await gov.setElectedTime(1, 123456789);
-    expect(await gov.isMonitor(op1.address)).to.be.equal(true);
-    expect(await gov.isMonitor(op2.address)).to.be.equal(true);
-    expect(await gov.isMonitor(op3.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op4.address)).to.be.equal(false);
-    expect(await gov.isMonitor(op5.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo1.address)).to.be.equal(true);
+    expect(await gov.isMonitor(mo2.address)).to.be.equal(true);
+    expect(await gov.isMonitor(mo3.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo4.address)).to.be.equal(false);
+    expect(await gov.isMonitor(mo5.address)).to.be.equal(false);
   });
 
 });
@@ -263,16 +263,16 @@ async function getBalance(gov) {
   return gov.provider.getBalance(gov.address);
 }
 async function getAllMonitorInfos(gov) {
-  const ops = [];
+  const infos = [];
   for (let i = 0; ; i++) {
     try {
-      ops.push(await getMonitorInfo(gov, i));
+      infos.push(await getMonitorInfo(gov, i));
     } catch (err) {
       // console.log(err);
       break;
     }
   }
-  return ops;
+  return infos;
 }
 async function getMonitorInfo(gov, idx) {
   let [addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime] = await gov.monitors(idx);
