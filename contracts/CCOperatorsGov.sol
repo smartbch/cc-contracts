@@ -4,7 +4,13 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/Address.sol";
 // import "hardhat/console.sol";
 
-contract CCOperatorsGov {
+interface ICCOperatorsGov {
+
+    function isOperator(address addr) external view returns (bool);
+
+}
+
+contract CCOperatorsGov is ICCOperatorsGov {
 
     struct OperatorInfo {
         address addr;           // address
@@ -39,6 +45,15 @@ contract CCOperatorsGov {
 
     StakeInfo[] public stakeInfos;
 
+    function isOperator(address addr) external view override returns (bool) {
+        if (operators.length == 0) {
+            return false;
+        }
+
+        uint idx = operatorIdxByAddr[addr];
+        OperatorInfo storage info = operators[idx];
+        return info.addr == addr && info.electedTime > 0;
+    }
 
     function applyOperator(uint8 pubkeyPrefix,
                            bytes32 pubkeyX,

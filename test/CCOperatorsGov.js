@@ -313,6 +313,29 @@ describe("CCOperatorsGov", function () {
     expect(await gov.getFreeSlots()).to.deep.equal([]);
   });
 
+
+  it("isOperator", async () => {
+    const { gov, op1, op2, op3, op4, op5 } = await loadFixture(deployGov);
+    expect(await gov.isOperator(op1.address)).to.be.equal(false);
+    expect(await gov.isOperator(op3.address)).to.be.equal(false);
+    expect(await gov.isOperator(op5.address)).to.be.equal(false);
+
+    await gov.connect(op1).applyOperator(0x02, testPkX1, testRpcUrl1, testIntro1, {value: minSelfStakedAmt.add(1)});
+    await gov.connect(op2).applyOperator(0x03, testPkX2, testRpcUrl2, testIntro2, {value: minSelfStakedAmt.add(2)});
+    await gov.connect(op3).applyOperator(0x02, testPkX3, testRpcUrl3, testIntro3, {value: minSelfStakedAmt.add(3)});
+    expect(await gov.isOperator(op1.address)).to.be.equal(false);
+    expect(await gov.isOperator(op3.address)).to.be.equal(false);
+    expect(await gov.isOperator(op5.address)).to.be.equal(false);
+
+    await gov.setElectedTime(0, 123456789);
+    await gov.setElectedTime(2, 123456789);
+    expect(await gov.isOperator(op1.address)).to.be.equal(true);
+    expect(await gov.isOperator(op2.address)).to.be.equal(false);
+    expect(await gov.isOperator(op3.address)).to.be.equal(true);
+    expect(await gov.isOperator(op4.address)).to.be.equal(false);
+    expect(await gov.isOperator(op5.address)).to.be.equal(false);
+  });
+
 });
 
 
