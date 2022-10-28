@@ -147,9 +147,11 @@ contract CCMonitorsGovForStorageTest is CCMonitorsGov(address(0x0)) {
     function addMonitor(uint pubkeyPrefix,
                         bytes32 pubkeyX,
                         bytes32 intro,
-                        uint stakedAmt) public {
+                        uint stakedAmt,
+                        uint nominatedCount) public {
         monitors.push(MonitorInfo(msg.sender, 
-            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0, 0, new address[](0)));
+            pubkeyPrefix, pubkeyX, intro, stakedAmt, 0, 0,
+            new address[](nominatedCount)));
     }
 
 }
