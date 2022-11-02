@@ -8,7 +8,7 @@ contract CCSbchNodesGov {
 
     struct NodeInfo {
         uint id; // start from 1
-        bytes32 pubkeyHash;
+        bytes32 pubkeyHash; // sha256 hash of node's RPC pubkey
         bytes32 rpcUrl;
         bytes32 intro;
     }
