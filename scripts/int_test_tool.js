@@ -83,11 +83,10 @@ yargs(process.argv.slice(2))
     return yargs
       .option('gov',       {required: true, type: 'string', description: 'SbchNodesGov address'})
       .option('rpc-url',   {required: true, type: 'string', description: 'RPC URL of sbcd node'})
-      .option('cert-url',  {required: true, type: 'string', description: 'URL to download cert'})
-      .option('cert-hash', {required: true, type: 'string', description: '32 bytes HEX string'})
+      .option('pbk-hash',  {required: true, type: 'string', description: '32 bytes HEX string'})
       ;
   }, async (argv) => {
-    await addSbchdNode(argv.gov, argv.rpcUrl, argv.certUrl, argv.certHash);
+    await addSbchdNode(argv.gov, argv.rpcUrl, argv.pbkHash);
   })
   .command('del-sbchd-node', 'remove sbchd node by id', (yargs) => {
     return yargs
@@ -259,19 +258,17 @@ async function listMonitors(govAddr) {
   }
 }
 
-async function addSbchdNode(govAddr, rpcUrl, certUrl, certHash) {
+async function addSbchdNode(govAddr, rpcUrl, pbkHash) {
   console.log('addSbchdNode ...');
   console.log('govAddr :', govAddr);
   console.log('rpcUrl  :', rpcUrl);
-  console.log('certUrl :', certUrl);
-  console.log('certHash:', certHash);
+  console.log('pbkHash :', pbkHash);
 
   rpcUrl = ethers.utils.formatBytes32String(rpcUrl);
-  certUrl = ethers.utils.formatBytes32String(certUrl);
 
   const Gov = await hre.ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
-  const ret = await gov.addNode(certHash, certUrl, rpcUrl, rpcUrl);
+  const ret = await gov.addNode(pbkHash, rpcUrl, rpcUrl);
   console.log(ret);
 }
 
@@ -295,11 +292,10 @@ async function listSbchdNodes(govAddr) {
   const n = await gov.getNodeCount();
   for (let i = 0; i < n; i++) {
     try {
-      let [id, certHash, certUrl, rpcUrl] = await gov.nodes(i);
+      let [id, pubkeyHash, rpcUrl] = await gov.nodes(i);
       console.log('id:', id.toNumber());
       console.log('rpcUrl:', ethers.utils.parseBytes32String(rpcUrl));
-      console.log('certUrl:', ethers.utils.parseBytes32String(certUrl));
-      console.log('certHash:', certHash);
+      console.log('pbkHash:', pubkeyHash);
     } catch (err) {
       console.log(err);
       break;

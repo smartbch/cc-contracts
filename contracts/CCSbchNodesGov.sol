@@ -8,8 +8,7 @@ contract CCSbchNodesGov {
 
     struct NodeInfo {
         uint id; // start from 1
-        bytes32 certHash;
-        bytes32 certUrl;
+        bytes32 pubkeyHash;
         bytes32 rpcUrl;
         bytes32 intro;
     }
@@ -23,7 +22,7 @@ contract CCSbchNodesGov {
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
-    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 intro);
+    event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
@@ -84,25 +83,25 @@ contract CCSbchNodesGov {
     function proposeNewProposers(address[] calldata newProposers) public onlyProposer {
         require(newProposers.length > 0, 'no-new-proposers');
         require(newProposers.length <= 256, 'too-many-proposers');
-        proposals.push(Proposal(msg.sender, newProposers, NodeInfo(0,'','','',''), 0, 0));
+        proposals.push(Proposal(msg.sender, newProposers, NodeInfo(0,'','',''), 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
-    function proposeNewNode(bytes32 certHash, bytes32 certUrl, bytes32 rpcUrl, bytes32 intro) public onlyProposer {
-        NodeInfo memory node = NodeInfo(0, certHash, certUrl, rpcUrl, intro);
+    function proposeNewNode(bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro) public onlyProposer {
+        NodeInfo memory node = NodeInfo(0, pubkeyHash, rpcUrl, intro);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
-        emit ProposeNewNode(id, msg.sender, certHash, certUrl, rpcUrl, intro);
+        emit ProposeNewNode(id, msg.sender, pubkeyHash, rpcUrl, intro);
     }
 
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
         uint nodeIdx = nodeIdxById[nodeId];
         require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId, 'no-such-node');
 
-        proposals.push(Proposal(msg.sender, new address[](0), NodeInfo(0,'','','',''), nodeId, 0));
+        proposals.push(Proposal(msg.sender, new address[](0), NodeInfo(0,'','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeObsoleteNode(id, msg.sender, nodeId);
@@ -144,7 +143,7 @@ contract CCSbchNodesGov {
             setNewProposers(proposal.newProposers);
             minProposalId = proposals.length;
             delete proposals[id];
-        } else if (proposal.newNode.certHash > 0) {
+        } else if (proposal.newNode.pubkeyHash > 0) {
             NodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId;
             nodes.push(node);
@@ -225,12 +224,11 @@ contract CCSbchNodesGovForIntegrationTest is CCSbchNodesGov {
 
     constructor() CCSbchNodesGov(address(0x0), new address[](1)) {}
 
-    function addNode(bytes32 certHash,
-                     bytes32 certUrl,
+    function addNode(bytes32 pubkeyHash,
                      bytes32 rpcUrl,
                      bytes32 intro) public {
         uint id = nodes.length + 1;
-        nodes.push(NodeInfo(id, certHash, certUrl, rpcUrl, intro));
+        nodes.push(NodeInfo(id, pubkeyHash, rpcUrl, intro));
         nodeIdxById[id] = id - 1;
     }
 
