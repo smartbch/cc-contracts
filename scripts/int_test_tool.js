@@ -111,21 +111,21 @@ async function deployGovContracts() {
   await hre.run("compile");
 
   // deploy CCMonitorsGovForIntegrationTest
-  const CCMonitorsGov = await hre.ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
+  const CCMonitorsGov = await ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
   const ccMonitorsGov = await CCMonitorsGov.deploy();
   await ccMonitorsGov.deployed();
   const ccMonitorsSeq = await ccMonitorsGov.provider.send('debug_getSeq', [ccMonitorsGov.address]);
   console.log("CCMonitorsGov deployed to:", ccMonitorsGov.address, "SEQ:", ccMonitorsSeq);
 
   // deploy CCOperatorsGovForIntegrationTest
-  const CCOperatorsGov = await hre.ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
+  const CCOperatorsGov = await ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
   const ccOperatorsGov = await CCOperatorsGov.deploy();
   await ccOperatorsGov.deployed();
   const ccOperatorsSeq = await ccOperatorsGov.provider.send('debug_getSeq', [ccOperatorsGov.address]);
   console.log("CCOperatorsGov deployed to:", ccOperatorsGov.address, "SEQ:", ccOperatorsSeq);
 
   // deploy CCSbchNodesGovForIntegrationTest
-  const CCNodesGov = await hre.ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
+  const CCNodesGov = await ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
   const ccNodesGov = await CCNodesGov.deploy();
   await ccNodesGov.deployed();
   const ccNodesSeq = await ccNodesGov.provider.send('debug_getSeq', [ccNodesGov.address]);
@@ -150,7 +150,7 @@ async function addOperator(govAddr,
   const rpcUrl = ethers.utils.formatBytes32String('rpc:'+operatorAddr.substring(0, 27));
   const intro = ethers.utils.formatBytes32String('intro:'+operatorAddr.substring(0, 25));
 
-  const Gov = await hre.ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.addOperator(operatorAddr, pubkey, rpcUrl, intro, 
       totalStakedAmt, selfStakedAmt, electedTime);
@@ -171,7 +171,7 @@ async function updateOperator(govAddr,
   console.log('selfStakedAmt :', selfStakedAmt);
   console.log('electedTime   :', electedTime);
 
-  const Gov = await hre.ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.updateOperator(operatorAddr, pubkey, 
       totalStakedAmt, selfStakedAmt, electedTime);
@@ -181,7 +181,7 @@ async function updateOperator(govAddr,
 async function listOperators(govAddr) {
   console.log('listOperators, govAddr:', govAddr, '\n');
 
-  const Gov = await hre.ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCOperatorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
 
   for (let i = 0; ; i++) {
@@ -214,7 +214,7 @@ async function addMonitor(govAddr,
 
   const intro = ethers.utils.formatBytes32String('intro:'+monitorAddr.substring(0, 25));
 
-  const Gov = await hre.ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.addMonitor(monitorAddr, pubkey, intro, stakedAmt, electedTime);
   console.log(ret);
@@ -232,7 +232,7 @@ async function updateMonitor(govAddr,
   console.log('stakedAmt  :', stakedAmt);
   console.log('electedTime:', electedTime);
 
-  const Gov = await hre.ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.updateMonitor(monitorAddr, pubkey, stakedAmt, electedTime);
   console.log(ret);
@@ -241,7 +241,7 @@ async function updateMonitor(govAddr,
 async function listMonitors(govAddr) {
   console.log('listMonitors, govAddr:', govAddr, '\n');
 
-  const Gov = await hre.ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCMonitorsGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
 
   for (let i = 0; ; i++) {
@@ -266,7 +266,7 @@ async function addSbchdNode(govAddr, rpcUrl, pbkHash) {
 
   rpcUrl = ethers.utils.formatBytes32String(rpcUrl);
 
-  const Gov = await hre.ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.addNode(pbkHash, rpcUrl, rpcUrl);
   console.log(ret);
@@ -277,7 +277,7 @@ async function delSbchdNode(govAddr, nodeId) {
   console.log('govAddr:', govAddr);
   console.log('nodeId :', nodeId);
 
-  const Gov = await hre.ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
   const ret = await gov.delNode(nodeId);
   console.log(ret);
@@ -286,7 +286,7 @@ async function delSbchdNode(govAddr, nodeId) {
 async function listSbchdNodes(govAddr) {
   console.log('listSbchdNodes, govAddr:', govAddr, '\n');
 
-  const Gov = await hre.ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
+  const Gov = await ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
   const gov = Gov.attach(govAddr);
 
   const n = await gov.getNodeCount();
