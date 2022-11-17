@@ -49,30 +49,35 @@ yargs(process.argv.slice(2))
 
 async function startRescan(h) {
   console.log('startRescan, h:', h);
-  const cc = new ethers.Contract(ccSysAddr, ccSysABI, ethers.getDefaultProvider());
-  await ccc.startRescan(h);
+  const signer = await ethers.getSigner();
+  const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
+  await cc.startRescan(h);
 }
 
 async function pause() {
   console.log('pause ...');
-  const cc = new ethers.Contract(ccSysAddr, ccSysABI, ethers.getDefaultProvider());
-  await ccc.pause();
+  const signer = await ethers.getSigner();
+  const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
+  await cc.pause();
 }
 
 async function resume() {
   console.log('resume ...');
-  const cc = new ethers.Contract(ccSysAddr, ccSysABI, ethers.getDefaultProvider());
-  await ccc.resume();
+  const signer = await ethers.getSigner();
+  const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
+  await cc.resume();
 }
 
 async function handleUTXOs() {
   console.log('handleUTXOs ...');
-  const cc = new ethers.Contract(ccSysAddr, ccSysABI, ethers.getDefaultProvider());
-  await ccc.handleUTXOs();
+  const signer = await ethers.getSigner();
+  const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
+  await cc.handleUTXOs();
 }
 
 async function redeem(txid, idx, targetAddr) {
   console.log('redeem, txid:', txid, 'idx:', idx, 'targetAddr:', targetAddr);
-  const cc = new ethers.Contract(ccSysAddr, ccSysABI, ethers.getDefaultProvider());
-  await ccc.redeem(txid, idx, targetAddr);
+  const signer = await ethers.getSigner();
+  const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
+  await cc.redeem(txid, idx, targetAddr);
 }
