@@ -4,7 +4,12 @@ const hre = require("hardhat");
 const ethers = hre.ethers;
 
 yargs(process.argv.slice(2))
-  .command('deploy-gov-contracts', 'deploy gov contracts', (yargs) => {
+  .command('deploy-nodes-gov', 'deploy SbchdNodesGov contract', (yargs) => {
+    return yargs;
+  }, async (argv) => {
+    await deploySbchdNodesGovContract();
+  })
+  .command('deploy-gov-contracts', 'deploy all Gov contracts', (yargs) => {
     return yargs;
   }, async (argv) => {
     await deployGovContracts();
@@ -106,6 +111,16 @@ yargs(process.argv.slice(2))
   .strictCommands()
   .argv;
 
+
+async function deploySbchdNodesGovContract() {
+  await hre.run("compile");
+
+  // deploy CCSbchNodesGovForIntegrationTest
+  const CCNodesGov = await ethers.getContractFactory("CCSbchNodesGovForIntegrationTest");
+  const ccNodesGov = await CCNodesGov.deploy();
+  await ccNodesGov.deployed();
+  console.log("CCNodesGov deployed to:", ccNodesGov.address);
+}
 
 async function deployGovContracts() {
   await hre.run("compile");
