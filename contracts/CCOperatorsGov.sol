@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 interface ICCOperatorsGov {
 
     function isOperator(address addr) external view returns (bool);
+    function operatorAddrList() external view returns (address[] memory);
 
 }
 
@@ -44,6 +45,25 @@ contract CCOperatorsGov is ICCOperatorsGov {
     uint[] freeSlots;
 
     StakeInfo[] public stakeInfos;
+
+    function operatorAddrList() external view override returns (address[] memory) {
+        address[] memory addrList = new address[](operators.length);
+	uint electedCount = 0;
+        for(uint i=0; i<addrList.length; i++) {
+	    bool elected = operators[i].electedTime>0;
+            addrList[i] = elected? operators[i].addr : address(0);
+	    if(elected) electedCount++;
+        }
+	address[] memory electedAddrList = new address[](electedCount);
+	uint j=0;
+	for(uint i=0; i<addrList.length; i++) {
+	    if(addrList[i] != address(0)) {
+		electedAddrList[j] = addrList[i];
+		j++;
+	    }
+	}
+        return electedAddrList;
+    }
 
     function isOperator(address addr) external view override returns (bool) {
         if (operators.length == 0) {
@@ -146,7 +166,7 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
     }
 
     function removeLastOperator() public {
-    	operators.pop();
+        operators.pop();
     }
 
 }

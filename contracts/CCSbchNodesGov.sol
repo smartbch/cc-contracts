@@ -22,8 +22,6 @@ contract CCSbchNodesGov {
         uint votes;             // bitmap
     }
 
-    uint constant OPERATOR_COUNT = 10;
-
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
     event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
@@ -33,6 +31,7 @@ contract CCSbchNodesGov {
 
     address immutable public MONITORS_GOV_ADDR;
     address immutable public OPERATORS_GOV_ADDR;
+    bytes32 public syncProposersHash;
 
     address[] public proposers;
     mapping(address => uint) proposerIdxByAddr;
@@ -132,19 +131,16 @@ contract CCSbchNodesGov {
         }
     }
 
-    function syncProposers(address[] calldata newProposers) public {
-        require(newProposers.length == OPERATOR_COUNT, "invalid-length");
+    function syncProposers() public {
         ICCOperatorsGov opGov = ICCOperatorsGov(OPERATORS_GOV_ADDR);
-        require(opGov.isOperator(newProposers[0]), "not-operator");
-        bool changeProposers = newProposers[0] != proposers[0];
-        for(uint i=1; i<OPERATOR_COUNT; i++) {
-            require(opGov.isOperator(newProposers[i]), "not-operator");
-            require(newProposers[i-1]<newProposers[i], "not-sorted");
-            changeProposers = changeProposers || (newProposers[i] != proposers[i]);
+	address[] memory addrList = opGov.operatorAddrList();
+	bytes32 hash = keccak256(abi.encode(addrList));
+	if(syncProposersHash == hash) {
+	    return;
         }
-        require(changeProposers, "not-changed");
+	syncProposersHash = hash;
         clearOldProposers();
-        setNewProposers(newProposers);
+        setNewProposers(addrList);
         minProposalId = proposals.length;
     }
 
