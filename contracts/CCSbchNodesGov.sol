@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import { ICCMonitorsGov } from "./CCMonitorsGov.sol";
+import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 // import "hardhat/console.sol";
 
 contract CCSbchNodesGov {
@@ -21,6 +22,8 @@ contract CCSbchNodesGov {
         uint votes;             // bitmap
     }
 
+    uint constant OPERATOR_COUNT = 10;
+
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
     event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro);
     event ProposeObsoleteNode(uint indexed id, address indexed proposer, uint nodeId);
@@ -29,6 +32,7 @@ contract CCSbchNodesGov {
     event RemoveNodeByMonitor(uint indexed nodeId, address indexed monitor);
 
     address immutable public MONITORS_GOV_ADDR;
+    address immutable public OPERATORS_GOV_ADDR;
 
     address[] public proposers;
     mapping(address => uint) proposerIdxByAddr;
@@ -50,8 +54,9 @@ contract CCSbchNodesGov {
         _;
     }
 
-    constructor(address monitorsGovAddr, address[] memory _proposers) {
+    constructor(address monitorsGovAddr, address operatorsGovAddr, address[] memory _proposers) {
         MONITORS_GOV_ADDR = monitorsGovAddr;
+        OPERATORS_GOV_ADDR = operatorsGovAddr;
         require(_proposers.length > 0, 'no-proposers');
         require(_proposers.length <= 256, 'too-many-proposers');
         for (uint i = 0; i < _proposers.length; i++) {
@@ -127,6 +132,22 @@ contract CCSbchNodesGov {
         }
     }
 
+    function syncProposers(address[] calldata newProposers) public {
+        require(newProposers.length == OPERATOR_COUNT, "invalid-length");
+        ICCOperatorsGov opGov = ICCOperatorsGov(OPERATORS_GOV_ADDR);
+        require(opGov.isOperator(newProposers[0]), "not-operator");
+        bool changeProposers = newProposers[0] != proposers[0];
+        for(uint i=1; i<OPERATOR_COUNT; i++) {
+            require(opGov.isOperator(newProposers[i]), "not-operator");
+            require(newProposers[i-1]<newProposers[i], "not-sorted");
+            changeProposers = changeProposers || (newProposers[i] != proposers[i]);
+        }
+        require(changeProposers, "not-changed");
+        clearOldProposers();
+        setNewProposers(newProposers);
+        minProposalId = proposals.length;
+    }
+
     function execProposal(uint id) public {
         require(id >= minProposalId, 'outdated-proposal');
         require(id < proposals.length, 'no-such-proposal');
@@ -175,7 +196,7 @@ contract CCSbchNodesGov {
             proposers.pop();
         }
     }
-    function setNewProposers(address[] storage newProposers) private {
+    function setNewProposers(address[] memory newProposers) private {
         for (uint i = 0; i < newProposers.length; i++) {
             setNewProposer(newProposers[i], i);
         }
@@ -208,8 +229,8 @@ contract CCSbchNodesGov {
 
 contract CCSbchNodesGovForUT is CCSbchNodesGov {
 
-    constructor(address monitorsGovAddr, address[] memory _proposers) 
-        CCSbchNodesGov(monitorsGovAddr, _proposers) {}
+    constructor(address monitorsGovAddr, address operatorsGovAddr, address[] memory _proposers) 
+        CCSbchNodesGov(monitorsGovAddr, operatorsGovAddr, _proposers) {}
 
     function getProposerIdx(address addr) public view returns (uint) {
         return proposerIdxByAddr[addr];
@@ -222,7 +243,7 @@ contract CCSbchNodesGovForUT is CCSbchNodesGov {
 
 contract CCSbchNodesGovForIntegrationTest is CCSbchNodesGov {
 
-    constructor() CCSbchNodesGov(address(0x0), new address[](1)) {}
+    constructor() CCSbchNodesGov(address(0x0), address(0x0), new address[](1)) {}
 
     function addNode(bytes32 pubkeyHash,
                      bytes32 rpcUrl,
