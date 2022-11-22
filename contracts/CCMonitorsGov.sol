@@ -11,18 +11,18 @@ interface ICCMonitorsGov {
 
 }
 
-contract CCMonitorsGov is ICCMonitorsGov {
+struct MonitorInfo {
+    address   addr;           // address
+    uint      pubkeyPrefix;   // 0x02 or 0x03
+    bytes32   pubkeyX;        // x
+    bytes32   intro;          // introduction
+    uint      stakedAmt;      // staked BCH
+    uint      electedTime;    // 0 means not elected, set by Golang
+    uint      oldElectedTime; // used to get old monitors, set by Golang
+    address[] nominatedBy;    // length of nominatedBy is read by Golang
+}
 
-    struct MonitorInfo {
-        address   addr;           // address
-        uint      pubkeyPrefix;   // 0x02 or 0x03
-        bytes32   pubkeyX;        // x
-        bytes32   intro;          // introduction
-        uint      stakedAmt;      // staked BCH
-        uint      electedTime;    // 0 means not elected, set by Golang
-        uint      oldElectedTime; // used to get old monitors, set by Golang
-        address[] nominatedBy;    // length of nominatedBy is read by Golang
-    }
+contract CCMonitorsGov is ICCMonitorsGov {
 
     event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
     event MonitorStake(address indexed candidate, uint amt);
@@ -39,8 +39,12 @@ contract CCMonitorsGov is ICCMonitorsGov {
     mapping(address => uint) monitorIdxByAddr;
     uint[] freeSlots;
 
-    constructor(address operatorsGovAddr) {
+    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) {
         OPERATORS_GOV_ADDR = operatorsGovAddr;
+        for(uint i=0; i<monitorList.length; i++) {
+            monitorIdxByAddr[monitorList[i].addr] = monitors.length;
+            monitors.push(monitorList[i]);
+        }
     }
 
     modifier onlyOperator() {
@@ -138,7 +142,9 @@ contract CCMonitorsGov is ICCMonitorsGov {
 }
 
 
-contract CCMonitorsGovForStorageTest is CCMonitorsGov(address(0x0)) {
+contract CCMonitorsGovForStorageTest is CCMonitorsGov {
+
+    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
@@ -158,7 +164,7 @@ contract CCMonitorsGovForStorageTest is CCMonitorsGov(address(0x0)) {
 
 contract CCMonitorsGovForUT is CCMonitorsGov {
 
-    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
+    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
 
     function getMonitorIdx(address addr) public view returns (uint) {
         return monitorIdxByAddr[addr];
@@ -177,7 +183,9 @@ contract CCMonitorsGovForUT is CCMonitorsGov {
 
 }
 
-contract CCMonitorsGovForIntegrationTest is CCMonitorsGov(address(0x0)) {
+contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
+
+    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;

@@ -133,12 +133,12 @@ contract CCSbchNodesGov {
 
     function syncProposers() public {
         ICCOperatorsGov opGov = ICCOperatorsGov(OPERATORS_GOV_ADDR);
-	address[] memory addrList = opGov.operatorAddrList();
-	bytes32 hash = keccak256(abi.encode(addrList));
-	if(syncProposersHash == hash) {
-	    return;
+        address[] memory addrList = opGov.operatorAddrList();
+        bytes32 hash = keccak256(abi.encode(addrList));
+        if(syncProposersHash == hash) {
+            return;
         }
-	syncProposersHash = hash;
+        syncProposersHash = hash;
         clearOldProposers();
         setNewProposers(addrList);
         minProposalId = proposals.length;

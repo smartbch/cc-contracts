@@ -46,22 +46,29 @@ contract CCOperatorsGov is ICCOperatorsGov {
 
     StakeInfo[] public stakeInfos;
 
+    constructor(OperatorInfo[] memory opList) {
+        for(uint i=0; i<opList.length; i++) {
+            operatorIdxByAddr[opList[i].addr] = operators.length;
+            operators.push(opList[i]);
+        }
+    }
+
     function operatorAddrList() external view override returns (address[] memory) {
         address[] memory addrList = new address[](operators.length);
-	uint electedCount = 0;
+        uint electedCount = 0;
         for(uint i=0; i<addrList.length; i++) {
-	    bool elected = operators[i].electedTime>0;
+            bool elected = operators[i].electedTime>0;
             addrList[i] = elected? operators[i].addr : address(0);
-	    if(elected) electedCount++;
+            if(elected) electedCount++;
         }
-	address[] memory electedAddrList = new address[](electedCount);
-	uint j=0;
-	for(uint i=0; i<addrList.length; i++) {
-	    if(addrList[i] != address(0)) {
-		electedAddrList[j] = addrList[i];
-		j++;
-	    }
-	}
+        address[] memory electedAddrList = new address[](electedCount);
+        uint j=0;
+        for(uint i=0; i<addrList.length; i++) {
+            if(addrList[i] != address(0)) {
+                electedAddrList[j] = addrList[i];
+                j++;
+            }
+        }
         return electedAddrList;
     }
 
@@ -165,6 +172,8 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
             pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0, 0));
     }
 
+    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
+
     function removeLastOperator() public {
         operators.pop();
     }
@@ -172,6 +181,8 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
 }
 
 contract CCOperatorsGovForUT is CCOperatorsGov {
+
+    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
 
     function getOperatorIdx(address addr) public view returns (uint) {
         return operatorIdxByAddr[addr];
@@ -187,6 +198,8 @@ contract CCOperatorsGovForUT is CCOperatorsGov {
 }
 
 contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
+
+    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
 
     function addOperator(address addr,
                          bytes calldata pubkey,
