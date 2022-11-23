@@ -39,10 +39,10 @@ yargs(process.argv.slice(2))
     return yargs
       .option('txid',  {required: true, type: 'string', description: 'txid of cc-UTXO'})
       .option('index', {required: true, type: 'number', description: 'vout of cc-UTXO'})
-      .option('to',    {required: true, type: 'number', description: 'target address'})
+      .option('to',    {required: true, type: 'string', description: 'target address'})
       ;
   }, async (argv) => {
-    await startRescan(argv.txid, argv.index, argv.to);
+    await redeem(argv.txid, argv.index, argv.to);
   })
   .strictCommands()
   .argv;
@@ -50,8 +50,10 @@ yargs(process.argv.slice(2))
 async function startRescan(h) {
   console.log('startRescan, h:', h);
   const signer = await ethers.getSigner();
+  const bal = ethers.utils.formatUnits(await signer.getBalance());
+  console.log('signer:', signer.address, 'balance:', bal);
   const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
-  await cc.startRescan(h);
+  await cc.startRescan(h, {gasLimit: 2_000_000});
 }
 
 async function pause() {
@@ -78,6 +80,8 @@ async function handleUTXOs() {
 async function redeem(txid, idx, targetAddr) {
   console.log('redeem, txid:', txid, 'idx:', idx, 'targetAddr:', targetAddr);
   const signer = await ethers.getSigner();
+  const bal = ethers.utils.formatUnits(await signer.getBalance());
+  console.log('signer:', signer.address, 'balance:', bal);
   const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
-  await cc.redeem(txid, idx, targetAddr);
+  await cc.redeem(txid, idx, targetAddr, {gasLimit: 2_000_000});
 }
