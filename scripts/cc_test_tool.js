@@ -83,5 +83,5 @@ async function redeem(txid, idx, targetAddr) {
   const bal = ethers.utils.formatUnits(await signer.getBalance());
   console.log('signer:', signer.address, 'balance:', bal);
   const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
-  await cc.redeem(txid, idx, targetAddr, {gasLimit: 2_000_000});
+  await cc.redeem(txid, idx, targetAddr, {gasLimit: 4_000_000});
 }
