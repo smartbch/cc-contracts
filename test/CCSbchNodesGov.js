@@ -32,32 +32,36 @@ describe("CCSbchNodesGov", function () {
   let p1, p2, p3, p4, p5, p6;
   let NodesGov, MonitorsGovMock;
   let monitorsGovMock, monitorsGovAddr;
+  let operatorsGovMock, operatorsMockAddr;
 
   before(async () => {
     [p1, p2, p3, p4, p5, p6] = await ethers.getSigners();
     NodesGov = await ethers.getContractFactory("CCSbchNodesGovForUT");
     MonitorsGovMock = await ethers.getContractFactory("CCMonitorsGovMock");
+    OperatorsGovMock = await ethers.getContractFactory("CCOperatorsGovMock");
   });
 
   beforeEach(async () => {
     monitorsGovMock = await MonitorsGovMock.deploy();
     monitorsGovAddr = monitorsGovMock.address;
+    operatorsGovMock = await OperatorsGovMock.deploy();
+    operatorsGovAddr = operatorsGovMock.address;
   });
 
   it("init: errors", async () => {
-    await expect(NodesGov.deploy(monitorsGovAddr, []))
+    await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, []))
       .to.be.revertedWith('no-proposers');
-    await expect(NodesGov.deploy(monitorsGovAddr, Array(257).fill(p1.address)))
+    await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, Array(257).fill(p1.address)))
       .to.be.revertedWith('too-many-proposers');
-    await expect(NodesGov.deploy(monitorsGovAddr, [p1.address, p2.address, p1.address]))
+    await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, [p1.address, p2.address, p1.address]))
       .to.be.revertedWith('duplicated-proposer');
-    await expect(NodesGov.deploy(monitorsGovAddr, [p1.address, p2.address, p2.address]))
+    await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, [p1.address, p2.address, p2.address]))
       .to.be.revertedWith('duplicated-proposer');
   });
 
   it("init: ok", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
     expect(await gov.getAllProposers()).to.deep.equal(proposers);
     expect(await gov.getProposerIdx(p1.address)).to.be.equal(0);
@@ -67,7 +71,7 @@ describe("CCSbchNodesGov", function () {
 
   it("propose: errors", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     await expect(gov.connect(p5).proposeNewProposers([p5.address]))
@@ -89,7 +93,7 @@ describe("CCSbchNodesGov", function () {
 
   it("propose: ok", async () => {
     const proposers = [p1, p2, p3, p4, p5, p6];
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers.map(x => x.address));
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers.map(x => x.address));
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -131,7 +135,7 @@ describe("CCSbchNodesGov", function () {
 
   it("vote: errors", async () => {
     const proposers = [p1.address, p2.address, p3.address];
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -159,7 +163,7 @@ describe("CCSbchNodesGov", function () {
 
   it("vote: ok", async () => {
     const proposers = [p1, p2, p3, p4, p5].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p4.address, p3.address, p2.address];
@@ -204,7 +208,7 @@ describe("CCSbchNodesGov", function () {
 
   it("exec: errors", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
@@ -231,7 +235,7 @@ describe("CCSbchNodesGov", function () {
 
   it("exec: ok", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     const newProposers = [p2, p3, p4].map(x => x.address);
@@ -261,7 +265,7 @@ describe("CCSbchNodesGov", function () {
 
   it("exec: newProposers", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
     expect(await gov.getAllProposers()).to.deep.equal(proposers);
     expect(await gov.getProposerIdx(p1.address)).to.be.equal(0);
@@ -289,7 +293,7 @@ describe("CCSbchNodesGov", function () {
 
   it("exec: nodes", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     // create 5 NewNode proposals
@@ -368,7 +372,7 @@ describe("CCSbchNodesGov", function () {
 
   it("removeNodeByMonitor: ok", async () => {
     const proposers = [p1, p2, p3].map(x => x.address);
-    const gov = await NodesGov.deploy(monitorsGovAddr, proposers);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
 
     // create 3 NewNode proposals

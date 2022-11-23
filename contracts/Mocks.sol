@@ -21,14 +21,20 @@ contract CCMonitorsGovMock is ICCMonitorsGov {
 
 contract CCOperatorsGovMock is ICCOperatorsGov {
 
-    mapping(address => bool) operators;
+    mapping(address => bool) opMap;
+    address[] opList;
 
     function isOperator(address addr) external view override returns (bool) {
-        return operators[addr];
+        return opMap[addr];
     }
 
+    function operatorAddrList() external view returns (address[] memory) {
+        return opList;
+    }
+
+
     function becomeOperator() public {
-        operators[msg.sender] = true;
+        opMap[msg.sender] = true;
     }
 
 }

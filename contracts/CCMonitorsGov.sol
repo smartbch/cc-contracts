@@ -29,6 +29,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
     event MonitorUnstake(address indexed candidate, uint amt);
     event NominatedBy(address indexed candidate, address operator);
 
+    uint constant MONITOR_COUNT = 3;
     uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
     uint constant UNSTAKE_WINDOW = 10 days;       // TODO: change this
 
@@ -39,17 +40,34 @@ contract CCMonitorsGov is ICCMonitorsGov {
     mapping(address => uint) monitorIdxByAddr;
     uint[] freeSlots;
 
-    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) {
+    constructor(address operatorsGovAddr) {
         OPERATORS_GOV_ADDR = operatorsGovAddr;
-        for(uint i=0; i<monitorList.length; i++) {
-            monitorIdxByAddr[monitorList[i].addr] = monitors.length;
-            monitors.push(monitorList[i]);
-        }
     }
 
     modifier onlyOperator() {
         require(ICCOperatorsGov(OPERATORS_GOV_ADDR).isOperator(msg.sender), 'not-operator');
         _;
+    }
+
+    function init(MonitorInfo[] memory monitorList) public payable {
+        require(monitors.length == 0, 'already-initialized');
+        require(monitorList.length == MONITOR_COUNT, 'invalid-monitor-count');
+
+        uint totalStakedAmt;
+        for (uint i = 0; i < monitorList.length; i++) {
+            MonitorInfo memory monitor = monitorList[i];
+
+            require(monitor.stakedAmt >= MIN_STAKED_AMT, 'staked-too-less');
+            totalStakedAmt == monitor.stakedAmt;
+
+            monitor.electedTime = block.timestamp;
+            monitor.oldElectedTime = 0;
+
+            monitorIdxByAddr[monitor.addr] = monitors.length;
+            monitors.push(monitor);
+        }
+
+        require(msg.value == totalStakedAmt, 'value-mismatch');
     }
 
     function getNominatedBy(address addr) public view returns (address[] memory) {
@@ -70,6 +88,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
     function applyMonitor(uint8 pubkeyPrefix,
                           bytes32 pubkeyX,
                           bytes32 intro) public payable {
+        // require(monitors.length > 0, 'not-initialized');
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
         require(msg.value >= MIN_STAKED_AMT, 'deposit-too-less');
 
@@ -144,7 +163,7 @@ contract CCMonitorsGov is ICCMonitorsGov {
 
 contract CCMonitorsGovForStorageTest is CCMonitorsGov {
 
-    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
+    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
@@ -164,7 +183,7 @@ contract CCMonitorsGovForStorageTest is CCMonitorsGov {
 
 contract CCMonitorsGovForUT is CCMonitorsGov {
 
-    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
+    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
 
     function getMonitorIdx(address addr) public view returns (uint) {
         return monitorIdxByAddr[addr];
@@ -185,7 +204,7 @@ contract CCMonitorsGovForUT is CCMonitorsGov {
 
 contract CCMonitorsGovForIntegrationTest is CCMonitorsGov {
 
-    constructor(address operatorsGovAddr, MonitorInfo[] memory monitorList) CCMonitorsGov(operatorsGovAddr, monitorList) {}
+    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;

@@ -36,8 +36,9 @@ contract CCOperatorsGov is ICCOperatorsGov {
     event OperatorStake(address indexed candidate, address indexed staker, uint stakeId, uint amt);
     event OperatorUnstake(address indexed candidate, address indexed staker, uint stakeId, uint amt);
 
-    uint public constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
-    uint public constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
+    uint constant OPERATOR_COUNT = 10;
+    uint constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
+    uint constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
 
     //uint public lastElectionTime;
     OperatorInfo[] public operators; // read by Golang
@@ -46,11 +47,26 @@ contract CCOperatorsGov is ICCOperatorsGov {
 
     StakeInfo[] public stakeInfos;
 
-    constructor(OperatorInfo[] memory opList) {
-        for(uint i=0; i<opList.length; i++) {
-            operatorIdxByAddr[opList[i].addr] = operators.length;
-            operators.push(opList[i]);
+    function init(OperatorInfo[] memory opList) public payable {
+        require(operators.length == 0, 'already-initialized');    
+        require(opList.length == OPERATOR_COUNT, 'invalid-operator-count');
+
+        uint totalStakedAmt;
+        for (uint i = 0; i < opList.length; i++) {
+            OperatorInfo memory operator = opList[i];
+
+            require(operator.selfStakedAmt >= MIN_SELF_STAKED_AMT, 'staked-too-less');
+            totalStakedAmt += operator.selfStakedAmt;
+
+            operator.electedTime = block.timestamp;
+            operator.oldElectedTime = 0;
+            operator.totalStakedAmt = operator.selfStakedAmt;
+
+            operatorIdxByAddr[operator.addr] = operators.length;
+            operators.push(operator);
         }
+
+        require(msg.value == totalStakedAmt, 'value-mismatch');
     }
 
     function operatorAddrList() external view override returns (address[] memory) {
@@ -162,6 +178,8 @@ contract CCOperatorsGov is ICCOperatorsGov {
 
 contract CCOperatorsGovForStorageTest is CCOperatorsGov {
 
+    // constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
+
     function addOperator(uint pubkeyPrefix,
                          bytes32 pubkeyX,
                          bytes32 rpcUrl, 
@@ -172,8 +190,6 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
             pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, 0, 0));
     }
 
-    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
-
     function removeLastOperator() public {
         operators.pop();
     }
@@ -182,7 +198,7 @@ contract CCOperatorsGovForStorageTest is CCOperatorsGov {
 
 contract CCOperatorsGovForUT is CCOperatorsGov {
 
-    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
+    // constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
 
     function getOperatorIdx(address addr) public view returns (uint) {
         return operatorIdxByAddr[addr];
@@ -199,7 +215,7 @@ contract CCOperatorsGovForUT is CCOperatorsGov {
 
 contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
 
-    constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
+    // constructor(OperatorInfo[] memory opList) CCOperatorsGov(opList) {}
 
     function addOperator(address addr,
                          bytes calldata pubkey,
