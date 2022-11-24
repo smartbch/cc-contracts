@@ -9,7 +9,7 @@ const ccSysABI = [
   "function pause() external",
   "function resume() external",
   "function handleUTXOs() external",
-  "function redeem(uint256 txid, uint256 index, address targetAddress) external",
+  "function redeem(uint256 txid, uint256 index, address targetAddress) external payable",
 ];
 
 yargs(process.argv.slice(2))
@@ -39,10 +39,11 @@ yargs(process.argv.slice(2))
     return yargs
       .option('txid',  {required: true, type: 'string', description: 'txid of cc-UTXO'})
       .option('index', {required: true, type: 'number', description: 'vout of cc-UTXO'})
+      .option('amount',{required: true, type: 'string', description: 'amount of cc-UTXO'})
       .option('to',    {required: true, type: 'string', description: 'target address'})
       ;
   }, async (argv) => {
-    await redeem(argv.txid, argv.index, argv.to);
+    await redeem(argv.txid, argv.index, argv.amount, argv.to);
   })
   .strictCommands()
   .argv;
@@ -77,11 +78,14 @@ async function handleUTXOs() {
   await cc.handleUTXOs();
 }
 
-async function redeem(txid, idx, targetAddr) {
-  console.log('redeem, txid:', txid, 'idx:', idx, 'targetAddr:', targetAddr);
+async function redeem(txid, idx, amt, targetAddr) {
+  console.log('redeem, txid:', txid, 'idx:', idx, 'amt:', amt, 'targetAddr:', targetAddr);
   const signer = await ethers.getSigner();
   const bal = ethers.utils.formatUnits(await signer.getBalance());
   console.log('signer:', signer.address, 'balance:', bal);
   const cc = new ethers.Contract(ccSysAddr, ccSysABI, signer);
-  await cc.redeem(txid, idx, targetAddr, {gasLimit: 4_000_000});
+  await cc.redeem(txid, idx, targetAddr, {
+    gasLimit: 8_000_000,
+    value: ethers.utils.parseUnits(amt),
+  });
 }
