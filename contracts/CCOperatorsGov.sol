@@ -16,13 +16,13 @@ contract CCOperatorsGov is ICCOperatorsGov {
     struct OperatorInfo {
         address addr;           // address
         uint    pubkeyPrefix;   // 0x02 or 0x03
-        bytes32 pubkeyX;        // x
+        bytes32 pubkeyX;        // the x coordinate of the pubkey
         bytes32 rpcUrl;         // ip:port
         bytes32 intro;          // introduction
         uint    totalStakedAmt; // total staked BCH
         uint    selfStakedAmt;  // self staked BCH
-        uint    electedTime;    // 0 means not elected, set by Golang
-        uint    oldElectedTime; // used to get old operators, set by Golang
+        uint    electedTime;    // 0 means not elected, set by Golang logic after counting votes
+        uint    oldElectedTime; // used to get the previous quorem operators, set by Golang logic
     }
 
     struct StakeInfo {
@@ -32,20 +32,22 @@ contract CCOperatorsGov is ICCOperatorsGov {
         uint    stakedAmt;
     }
 
+    // emitted when someone apply for the job as an operator
     event OperatorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 rpcUrl, bytes32 intro, uint stakedAmt);
+    // emitted when someone stake BCH to an operator candidate
     event OperatorStake(address indexed candidate, address indexed staker, uint stakeId, uint amt);
+    // emitted when someone unstake BCH from an operator candidate
     event OperatorUnstake(address indexed candidate, address indexed staker, uint stakeId, uint amt);
 
     uint constant OPERATOR_COUNT = 10;
     uint constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
     uint constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
 
-    //uint public lastElectionTime;
-    OperatorInfo[] public operators; // read by Golang
+    OperatorInfo[] public operators; // read&written by Golang
     mapping(address => uint) operatorIdxByAddr;
     uint[] freeSlots;
 
-    StakeInfo[] public stakeInfos;
+    StakeInfo[] public stakeInfos; // each stake action is recorded, such that the staker can unstake it
 
     function init(OperatorInfo[] memory opList) public payable {
         require(operators.length == 0, 'already-initialized');    
@@ -74,18 +76,17 @@ contract CCOperatorsGov is ICCOperatorsGov {
         uint electedCount = 0;
         for(uint i=0; i<addrList.length; i++) {
             bool elected = operators[i].electedTime>0;
-            addrList[i] = elected? operators[i].addr : address(0);
-            if(elected) electedCount++;
+            if(elected) {
+                addrList[electedCount] = operators[i].addr;
+	        electedCount++;
+	    }
         }
-        address[] memory electedAddrList = new address[](electedCount);
-        uint j=0;
-        for(uint i=0; i<addrList.length; i++) {
-            if(addrList[i] != address(0)) {
-                electedAddrList[j] = addrList[i];
-                j++;
-            }
+        uint byteCount = 64 + 32 * electedCount;
+        assembly { // slicing addrList
+            let lengthPos := add(addrList, 32)
+	    mstore(lengthPos, electedCount)
+	    return(addrList, byteCount)
         }
-        return electedAddrList;
     }
 
     function isOperator(address addr) external view override returns (bool) {
