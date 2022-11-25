@@ -42,6 +42,12 @@ describe("CCOperatorsGov", function () {
     return { gov, op1, op2, op3, op4, op5, op6 };
   }
 
+  it("init: not-owner", async () => {
+    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+    await expect(gov.connect(op3).init([]))
+      .to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it("applyOperator: invalid-pubkey-prefix", async () => {
     const { gov } = await loadFixture(deployGov);
     const testCases = [0x00, 0x01, 0x04, 0x05, 0x09, 0x99, 0xff];
@@ -334,6 +340,8 @@ describe("CCOperatorsGov", function () {
     expect(await gov.isOperator(op3.address)).to.be.equal(true);
     expect(await gov.isOperator(op4.address)).to.be.equal(false);
     expect(await gov.isOperator(op5.address)).to.be.equal(false);
+
+    expect(await gov.operatorAddrList()).to.be.equal([]);
   });
 
 });

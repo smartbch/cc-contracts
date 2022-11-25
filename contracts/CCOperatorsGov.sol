@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -79,14 +79,15 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
             bool elected = operators[i].electedTime>0;
             if(elected) {
                 addrList[electedCount] = operators[i].addr;
-	        electedCount++;
-	    }
+                electedCount++;
+            }
         }
+        // return addrList[0:electedCount];
         uint byteCount = 64 + 32 * electedCount;
         assembly { // slicing addrList
             let lengthPos := add(addrList, 32)
-	    mstore(lengthPos, electedCount)
-	    return(addrList, byteCount)
+            mstore(lengthPos, electedCount)
+            return(addrList, byteCount)
         }
     }
 

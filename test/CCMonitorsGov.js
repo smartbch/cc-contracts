@@ -38,6 +38,12 @@ describe("CCMonitorsGov", function () {
     return { gov, mo1, mo2, mo3, mo4, mo5, mo6, opsGov };
   }
 
+  it("init: not-owner", async () => {
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+    await expect(gov.connect(mo3).init([]))
+      .to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
   it("applyMonitor: invalid-pubkey-prefix", async () => {
     const { gov } = await loadFixture(deployGov);
     const testCases = [0x00, 0x01, 0x04, 0x05, 0x09, 0x99, 0xff];
