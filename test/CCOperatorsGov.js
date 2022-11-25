@@ -341,7 +341,7 @@ describe("CCOperatorsGov", function () {
     expect(await gov.isOperator(op4.address)).to.be.equal(false);
     expect(await gov.isOperator(op5.address)).to.be.equal(false);
 
-    expect(await gov.operatorAddrList()).to.be.equal([]);
+    expect(await gov.operatorAddrList()).to.deep.equal([op1.address, op3.address]);
   });
 
 });

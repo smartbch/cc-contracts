@@ -74,7 +74,7 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
     }
 
     function operatorAddrList() external view override returns (address[] memory) {
-	uint addrOrig; // start of returned data
+        uint addrOrig; // start of returned data
         uint addrLen; // the slice's length is written at this address
         uint addrStart; // the address of the first entry of returned slice
         uint addrEnd; // ending address to write the next operator
@@ -89,7 +89,7 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
         addrEnd = addrStart;
         for(uint i=0; i<operators.length; i++) {
             if(operators[i].electedTime == 0) continue;
-	    uint operator = uint(uint160(operators[i].addr));
+            uint operator = uint(uint160(operators[i].addr));
             // solhint-disable-next-line no-inline-assembly
             assembly {
                 mstore(addrEnd, operator) //write the operator
