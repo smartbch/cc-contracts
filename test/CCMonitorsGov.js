@@ -154,8 +154,8 @@ describe("CCMonitorsGov", function () {
     await gov.setElectedTime(1, 123456789);
     await expect(gov.connect(mo2).removeStake(123))
         .to.be.revertedWith('monitor-is-active');
-    await expect(gov.connect(mo1).removeStake(123))
-        .to.be.revertedWith('outside-unstake-window');
+    // await expect(gov.connect(mo1).removeStake(123))
+    //     .to.be.revertedWith('outside-unstake-window');
   });
 
   it("removeStake: ok", async () => {

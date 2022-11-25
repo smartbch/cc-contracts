@@ -36,7 +36,6 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
     address constant private SEP206_ADDR = address(uint160(0x2711));
 
     uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
-    uint constant UNSTAKE_WINDOW = 10 days;       // TODO: change this
 
     address immutable OPERATORS_GOV_ADDR;
 
@@ -132,9 +131,6 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
         if (monitor.stakedAmt < MIN_STAKED_AMT) {
             // only an inactive monitor can reduce self-stake below the threshold
             require(monitor.electedTime == 0, 'monitor-is-active');
-            // but it must reduce within a small time-window after it turns inactive, such that miners stop voting it ASAP
-            require(block.timestamp - lastElectionTime < UNSTAKE_WINDOW, "outside-unstake-window");
-            // TODO: more checks
         }
         if (monitor.stakedAmt == 0) { // an inactive monitor has no self-staked coins now, we can delete it
             delete monitors[monitorIdx];
