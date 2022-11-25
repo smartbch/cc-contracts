@@ -179,13 +179,13 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
         }
 
         operator.totalStakedAmt -= amt;
-        if (operator.addr == msg.sender) {
+        if (operator.addr == msg.sender) { // reduce the recorded self-stake amount
             operator.selfStakedAmt -= amt;
             if (operator.electedTime > 0) { // active operator must keep enough self-stake
                 require(operator.selfStakedAmt > MIN_SELF_STAKED_AMT, 'too-less-self-stake');
             }
         }
-        if (operator.totalStakedAmt == 0) {
+        if (operator.totalStakedAmt == 0) { // an inactive operator has no staked coins now, we can delete it
             delete operators[operatorIdx];
             delete operatorIdxByAddr[msg.sender];
             freeSlots.push(operatorIdx);
