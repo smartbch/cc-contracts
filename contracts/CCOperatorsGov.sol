@@ -14,26 +14,27 @@ interface ICCOperatorsGov {
 
 }
 
+struct OperatorInfo {
+    address addr;           // address
+    uint    pubkeyPrefix;   // 0x02 or 0x03
+    bytes32 pubkeyX;        // the x coordinate of the pubkey
+    bytes32 rpcUrl;         // ip:port
+    bytes32 intro;          // introduction
+    uint    totalStakedAmt; // total staked BCH
+    uint    selfStakedAmt;  // self staked BCH
+    uint    electedTime;    // 0 means not elected, set by Golang logic after counting votes
+    uint    oldElectedTime; // used to get the previous quorem operators, set by Golang logic
+}
+
+struct StakeInfo {
+    address staker;
+    address operator;
+    uint32  stakedTime;
+    uint    stakedAmt;
+}
+
 contract CCOperatorsGov is ICCOperatorsGov, Ownable {
-
-    struct OperatorInfo {
-        address addr;           // address
-        uint    pubkeyPrefix;   // 0x02 or 0x03
-        bytes32 pubkeyX;        // the x coordinate of the pubkey
-        bytes32 rpcUrl;         // ip:port
-        bytes32 intro;          // introduction
-        uint    totalStakedAmt; // total staked BCH
-        uint    selfStakedAmt;  // self staked BCH
-        uint    electedTime;    // 0 means not elected, set by Golang logic after counting votes
-        uint    oldElectedTime; // used to get the previous quorem operators, set by Golang logic
-    }
-
-    struct StakeInfo {
-        address staker;
-        address operator;
-        uint32  stakedTime;
-        uint    stakedAmt;
-    }
+    using SafeERC20 for IERC20;
 
     // emitted when someone apply for the job as an operator
     event OperatorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 rpcUrl, bytes32 intro, uint stakedAmt);
@@ -60,7 +61,7 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
             OperatorInfo memory operator = opList[i];
 
             require(operator.selfStakedAmt >= MIN_SELF_STAKED_AMT, 'staked-too-less');
-            SafeERC20.safeTransferFrom(IERC20(SEP206_ADDR),
+            IERC20(SEP206_ADDR).safeTransferFrom(
                 operator.addr, address(this), operator.selfStakedAmt);
 
             operator.electedTime = block.timestamp;

@@ -26,6 +26,8 @@ struct MonitorInfo {
 }
 
 contract CCMonitorsGov is ICCMonitorsGov, Ownable {
+    using SafeERC20 for IERC20;
+
 
     event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
     event MonitorStake(address indexed candidate, uint amt);
@@ -60,7 +62,7 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
             MonitorInfo memory monitor = monitorList[i];
 
             require(monitor.stakedAmt >= MIN_STAKED_AMT, 'staked-too-less');
-            SafeERC20.safeTransferFrom(IERC20(SEP206_ADDR),
+            IERC20(SEP206_ADDR).safeTransferFrom(
                 monitor.addr, address(this), monitor.stakedAmt);
 
             monitor.electedTime = block.timestamp;
