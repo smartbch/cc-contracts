@@ -1,6 +1,9 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 // import "hardhat/console.sol";
@@ -22,14 +25,15 @@ struct MonitorInfo {
     address[] nominatedBy;    // length of nominatedBy is read by Golang
 }
 
-contract CCMonitorsGov is ICCMonitorsGov {
+contract CCMonitorsGov is ICCMonitorsGov, Ownable {
 
     event MonitorApply(address indexed candidate, uint pubkeyPrefix, bytes32 pubkeyX, bytes32 intro, uint stakedAmt);
     event MonitorStake(address indexed candidate, uint amt);
     event MonitorUnstake(address indexed candidate, uint amt);
     event NominatedBy(address indexed candidate, address operator);
 
-    uint constant MONITOR_COUNT = 3;
+    address constant private SEP206_ADDR = address(uint160(0x2711));
+
     uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
     uint constant UNSTAKE_WINDOW = 10 days;       // TODO: change this
 
@@ -49,16 +53,15 @@ contract CCMonitorsGov is ICCMonitorsGov {
         _;
     }
 
-    function init(MonitorInfo[] memory monitorList) public payable {
+    function init(MonitorInfo[] memory monitorList) public onlyOwner {
         require(monitors.length == 0, 'already-initialized');
-        require(monitorList.length == MONITOR_COUNT, 'invalid-monitor-count');
 
-        uint totalStakedAmt;
         for (uint i = 0; i < monitorList.length; i++) {
             MonitorInfo memory monitor = monitorList[i];
 
             require(monitor.stakedAmt >= MIN_STAKED_AMT, 'staked-too-less');
-            totalStakedAmt == monitor.stakedAmt;
+            SafeERC20.safeTransferFrom(IERC20(SEP206_ADDR),
+                monitor.addr, address(this), monitor.stakedAmt);
 
             monitor.electedTime = block.timestamp;
             monitor.oldElectedTime = 0;
@@ -66,8 +69,6 @@ contract CCMonitorsGov is ICCMonitorsGov {
             monitorIdxByAddr[monitor.addr] = monitors.length;
             monitors.push(monitor);
         }
-
-        require(msg.value == totalStakedAmt, 'value-mismatch');
     }
 
     function getNominatedBy(address addr) public view returns (address[] memory) {

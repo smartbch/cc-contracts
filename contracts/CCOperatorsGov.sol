@@ -1,6 +1,9 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 // import "hardhat/console.sol";
 
@@ -11,7 +14,7 @@ interface ICCOperatorsGov {
 
 }
 
-contract CCOperatorsGov is ICCOperatorsGov {
+contract CCOperatorsGov is ICCOperatorsGov, Ownable {
 
     struct OperatorInfo {
         address addr;           // address
@@ -39,7 +42,8 @@ contract CCOperatorsGov is ICCOperatorsGov {
     // emitted when someone unstake BCH from an operator candidate
     event OperatorUnstake(address indexed candidate, address indexed staker, uint stakeId, uint amt);
 
-    uint constant OPERATOR_COUNT = 10;
+    address constant private SEP206_ADDR = address(uint160(0x2711));
+
     uint constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
     uint constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
 
@@ -49,16 +53,15 @@ contract CCOperatorsGov is ICCOperatorsGov {
 
     StakeInfo[] public stakeInfos; // each stake action is recorded, such that the staker can unstake it
 
-    function init(OperatorInfo[] memory opList) public payable {
+    function init(OperatorInfo[] memory opList) public onlyOwner {
         require(operators.length == 0, 'already-initialized');    
-        require(opList.length == OPERATOR_COUNT, 'invalid-operator-count');
 
-        uint totalStakedAmt;
         for (uint i = 0; i < opList.length; i++) {
             OperatorInfo memory operator = opList[i];
 
             require(operator.selfStakedAmt >= MIN_SELF_STAKED_AMT, 'staked-too-less');
-            totalStakedAmt += operator.selfStakedAmt;
+            SafeERC20.safeTransferFrom(IERC20(SEP206_ADDR),
+                operator.addr, address(this), operator.selfStakedAmt);
 
             operator.electedTime = block.timestamp;
             operator.oldElectedTime = 0;
@@ -67,8 +70,6 @@ contract CCOperatorsGov is ICCOperatorsGov {
             operatorIdxByAddr[operator.addr] = operators.length;
             operators.push(operator);
         }
-
-        require(msg.value == totalStakedAmt, 'value-mismatch');
     }
 
     function operatorAddrList() external view override returns (address[] memory) {
@@ -103,6 +104,7 @@ contract CCOperatorsGov is ICCOperatorsGov {
                            bytes32 pubkeyX,
                            bytes32 rpcUrl, 
                            bytes32 intro) public payable {
+        // require(operators.length > 0, 'not-initialized');
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
         require(msg.value >= MIN_SELF_STAKED_AMT, 'deposit-too-less');
 
