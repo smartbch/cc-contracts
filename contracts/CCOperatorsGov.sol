@@ -74,24 +74,38 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
     }
 
     function operatorAddrList() external view override returns (address[] memory) {
-        address[] memory addrList = new address[](operators.length);
-        uint electedCount = 0;
-        for(uint i=0; i<addrList.length; i++) {
-            bool elected = operators[i].electedTime>0;
-            if(elected) {
-                addrList[electedCount] = operators[i].addr;
-                electedCount++;
-            }
+	uint addrOrig; // start of returned data
+        uint addrLen; // the slice's length is written at this address
+        uint addrStart; // the address of the first entry of returned slice
+        uint addrEnd; // ending address to write the next operator
+        uint count = 0; // the slice's length
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            addrOrig := mload(0x40) // There is a “free memory pointer” at address 0x40 in memory
+            mstore(addrOrig, 32) //the meaningful data start after offset 32
         }
-        // return addrList[0:electedCount];
-        uint byteCount = 64 + 32 * electedCount;
-        assembly { // slicing addrList
-            let lengthPos := add(addrList, 32)
-            mstore(lengthPos, electedCount)
-            return(addrList, byteCount)
+        addrLen = addrOrig + 32;
+        addrStart = addrLen + 32;
+        addrEnd = addrStart;
+        for(uint i=0; i<operators.length; i++) {
+            if(operators[i].electedTime == 0) continue;
+	    uint operator = uint(uint160(operators[i].addr));
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                mstore(addrEnd, operator) //write the operator
+            }
+            addrEnd += 32;
+            count++;
+        }
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            mstore(addrLen, count) // record the returned slice's length
+            let byteCount := sub(addrEnd, addrOrig)
+            return(addrOrig, byteCount)
         }
     }
 
+    // check if 'addr' has been elected as an operator
     function isOperator(address addr) external view override returns (bool) {
         if (operators.length == 0) {
             return false;
@@ -102,35 +116,37 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
         return info.addr == addr && info.electedTime > 0;
     }
 
+    // apply the job as an operator
     function applyOperator(uint8 pubkeyPrefix,
                            bytes32 pubkeyX,
                            bytes32 rpcUrl, 
                            bytes32 intro) public payable {
         // require(operators.length > 0, 'not-initialized');
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
-        require(msg.value >= MIN_SELF_STAKED_AMT, 'deposit-too-less');
+        require(msg.value >= MIN_SELF_STAKED_AMT, 'deposit-too-less'); // self stake
 
         uint operatorIdx = operatorIdxByAddr[msg.sender];
-        require(operatorIdx == 0, 'operator-existed');
-        if (operators.length > 0) {            
+        require(operatorIdx == 0, 'operator-existed'); // zero means not-existed or locate at [0]
+        if (operators.length > 0) { // make sure it does not locate at [0]
             require(operators[0].addr != msg.sender, 'operator-existed');
         }
 
-        if (freeSlots.length > 0) {
+        if (freeSlots.length > 0) { // if the 'operators' list has free slots, i.e., empty slots
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
             operators[freeSlot] = OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0);
             operatorIdxByAddr[msg.sender] = freeSlot;
-        } else {
+        } else { // no free slot, so we must enlarge the 'operators' list
             operators.push(OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0));
             operatorIdxByAddr[msg.sender] = operators.length - 1;
         }
 
         stakeInfos.push(StakeInfo(msg.sender, msg.sender, uint32(block.timestamp), msg.value));
         emit OperatorApply(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value);
-        emit OperatorStake(msg.sender, msg.sender, stakeInfos.length - 1, msg.value); 
+        emit OperatorStake(msg.sender, msg.sender, stakeInfos.length - 1, msg.value);
     }
 
+    // stake BCH to vote for an operator candidate
     function stakeOperator(address addr) public payable {
         require(msg.value > 0, 'deposit-nothing');
         stakeInfos.push(StakeInfo(msg.sender, addr, uint32(block.timestamp), msg.value));
@@ -139,12 +155,13 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
         OperatorInfo storage operator = operators[operatorIdx];
         require(operator.addr == addr, 'no-such-operator');
         operator.totalStakedAmt += msg.value;
-        if (addr == msg.sender) {
+        if (addr == msg.sender) { // increasing self-stake is allowed
             operator.selfStakedAmt += msg.value;
         }
         emit OperatorStake(operator.addr, msg.sender, stakeInfos.length - 1, msg.value);
     }
 
+    // unstake BCH from a former staking record, to revoke your vote for an operator
     function unstakeOperator(uint stakeId, uint amt) public {
         require(stakeId < stakeInfos.length, 'no-such-stake-info');
         StakeInfo storage stakeInfo = stakeInfos[stakeId];
@@ -158,13 +175,13 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
 
         stakeInfo.stakedAmt -= amt;
         if (stakeInfo.stakedAmt == 0) {
-            delete stakeInfos[stakeId];
+            delete stakeInfos[stakeId]; // delete an useless slot. This slot will not be used again
         }
 
         operator.totalStakedAmt -= amt;
         if (operator.addr == msg.sender) {
             operator.selfStakedAmt -= amt;
-            if (operator.electedTime > 0) {
+            if (operator.electedTime > 0) { // active operator must keep enough self-stake
                 require(operator.selfStakedAmt > MIN_SELF_STAKED_AMT, 'too-less-self-stake');
             }
         }
