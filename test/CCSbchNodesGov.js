@@ -8,23 +8,23 @@ const testPbkHash1 = ethers.utils.formatBytes32String('testPbkHash1');
 const testPbkHash2 = ethers.utils.formatBytes32String('testPbkHash2');
 const testPbkHash3 = ethers.utils.formatBytes32String('testPbkHash3');
 const testPbkHash4 = ethers.utils.formatBytes32String('testPbkHash4');
-const testRpcUrl0   = ethers.utils.formatBytes32String('testRpcUrl0');
-const testRpcUrl1   = ethers.utils.formatBytes32String('testRpcUrl1');
-const testRpcUrl2   = ethers.utils.formatBytes32String('testRpcUrl2');
-const testRpcUrl3   = ethers.utils.formatBytes32String('testRpcUrl3');
-const testRpcUrl4   = ethers.utils.formatBytes32String('testRpcUrl4');
-const testIntro0    = ethers.utils.formatBytes32String('testIntro0');
-const testIntro1    = ethers.utils.formatBytes32String('testIntro1');
-const testIntro2    = ethers.utils.formatBytes32String('testIntro2');
-const testIntro3    = ethers.utils.formatBytes32String('testIntro3');
-const testIntro4    = ethers.utils.formatBytes32String('testIntro4');
+const testRpcUrl0  = ethers.utils.formatBytes32String('testRpcUrl0');
+const testRpcUrl1  = ethers.utils.formatBytes32String('testRpcUrl1');
+const testRpcUrl2  = ethers.utils.formatBytes32String('testRpcUrl2');
+const testRpcUrl3  = ethers.utils.formatBytes32String('testRpcUrl3');
+const testRpcUrl4  = ethers.utils.formatBytes32String('testRpcUrl4');
+const testIntro0   = ethers.utils.formatBytes32String('testIntro0');
+const testIntro1   = ethers.utils.formatBytes32String('testIntro1');
+const testIntro2   = ethers.utils.formatBytes32String('testIntro2');
+const testIntro3   = ethers.utils.formatBytes32String('testIntro3');
+const testIntro4   = ethers.utils.formatBytes32String('testIntro4');
 
 const testPbkHash  = testPbkHash0;
-const testRpcUrl    = testRpcUrl0;
-const testIntro     = testIntro0;
+const testRpcUrl   = testRpcUrl0;
+const testIntro    = testIntro0;
 
-const testNewNode  = { id: 0, pubkeyHash: testPbkHash, rpcUrl: testRpcUrl,  intro: testIntro };
-const emptyNewNode = { id: 0, pubkeyHash: zeroBytes32,  rpcUrl: zeroBytes32, intro: zeroBytes32 };
+const testNewNode  = { id: 0, pubkeyHash: testPbkHash, rpcUrl: testRpcUrl,  intro: testIntro   };
+const emptyNewNode = { id: 0, pubkeyHash: zeroBytes32, rpcUrl: zeroBytes32, intro: zeroBytes32 };
 
 
 describe("CCSbchNodesGov", function () {
@@ -401,6 +401,37 @@ describe("CCSbchNodesGov", function () {
       { id: 1, pubkeyHash: testPbkHash0, rpcUrl: testRpcUrl0, intro: testIntro0 },
       { id: 3, pubkeyHash: testPbkHash2, rpcUrl: testRpcUrl2, intro: testIntro2 },
     ]);
+  });
+
+  it("syncProposers", async () => {
+    const proposers = [p1, p2, p3].map(x => x.address);
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
+    await gov.deployed();
+
+    // create 3 proposals
+    await gov.connect(p1).proposeNewNode(testPbkHash0, testRpcUrl0, testIntro0); // proposal#0
+    await gov.connect(p2).proposeNewNode(testPbkHash1, testRpcUrl1, testIntro1); // proposal#1
+    await gov.connect(p3).proposeNewNode(testPbkHash2, testRpcUrl2, testIntro2); // proposal#2
+    expect(await gov.getAllProposers()).to.deep.equal(proposers);
+    expect(await gov.minProposalId()).to.equal(0);
+
+    // sync
+    await operatorsGovMock.connect(p2).becomeOperator();
+    await operatorsGovMock.connect(p4).becomeOperator();
+    await operatorsGovMock.connect(p5).becomeOperator();
+    await gov.syncProposers();
+    expect(await gov.getAllProposers()).to.deep.equal([p2, p4, p5].map(x => x.address));
+    expect(await gov.minProposalId()).to.equal(3);
+
+    // create 3 more proposals
+    await gov.connect(p2).proposeNewNode(testPbkHash0, testRpcUrl0, testIntro0); // proposal#3
+    await gov.connect(p4).proposeNewNode(testPbkHash1, testRpcUrl1, testIntro1); // proposal#4
+    await gov.connect(p5).proposeNewNode(testPbkHash2, testRpcUrl2, testIntro2); // proposal#5
+
+    // sync no-op
+    await gov.syncProposers();
+    expect(await gov.getAllProposers()).to.deep.equal([p2, p4, p5].map(x => x.address));
+    expect(await gov.minProposalId()).to.equal(3);
   });
 
 });

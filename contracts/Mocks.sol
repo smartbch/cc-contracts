@@ -35,6 +35,7 @@ contract CCOperatorsGovMock is ICCOperatorsGov {
 
     function becomeOperator() public {
         opMap[msg.sender] = true;
+        opList.push(msg.sender);
     }
 
 }
