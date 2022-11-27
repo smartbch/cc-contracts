@@ -8,7 +8,7 @@ import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 contract CCSbchNodesGov {
 
     struct NodeInfo {
-        uint id; // start from 1
+        uint id; // a unique id for a node starting from 1. It never changes.
         bytes32 pubkeyHash; // sha256 hash of node's RPC pubkey
         bytes32 rpcUrl;
         bytes32 intro;
@@ -19,7 +19,7 @@ contract CCSbchNodesGov {
         address[] newProposers; // proposal for new proposer set
         NodeInfo newNode;       // proposal for new enclave node
         uint obsoleteNodeId;    // proposal for obsolete enclave node
-        uint votes;             // bitmap
+        uint votes;             // bitmap indicating which proposers support this proposal
     }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
@@ -31,17 +31,17 @@ contract CCSbchNodesGov {
 
     address immutable public MONITORS_GOV_ADDR;
     address immutable public OPERATORS_GOV_ADDR;
-    bytes32 public syncProposersHash;
+    bytes32 public syncProposersHash; // updated when syncing proposers from the operator set, to prevent resyncing
 
-    address[] public proposers;
+    address[] public proposers; // all the active proposers
     mapping(address => uint) proposerIdxByAddr;
 
-    uint public lastNodeId;
-    NodeInfo[] public nodes;
+    uint public lastNodeId; //always increasing
+    NodeInfo[] public nodes; // all the active nodes
     mapping(uint => uint) nodeIdxById;
 
-    uint public minProposalId;
-    Proposal[] public proposals;
+    uint public minProposalId; // a proposal whose id is no less than this value is valid
+    Proposal[] public proposals; // all the active/inactive/executed proposals
 
     modifier onlyProposer() {
         require(isProposer(msg.sender), 'not-proposer');
@@ -70,6 +70,7 @@ contract CCSbchNodesGov {
     function getAllProposers() public view returns (address[] memory _proposers) {
         _proposers = proposers;
     }
+
     function getProposal(uint id) public view returns (address proposer,
                                                        address[] memory newProposers,
                                                        NodeInfo memory newNode,
@@ -83,7 +84,7 @@ contract CCSbchNodesGov {
         votes = proposal.votes;
     }
 
-
+    // proposal type 1: switch to a new set of proposers
     function proposeNewProposers(address[] calldata newProposers) public onlyProposer {
         require(newProposers.length > 0, 'no-new-proposers');
         require(newProposers.length <= 256, 'too-many-proposers');
@@ -93,6 +94,7 @@ contract CCSbchNodesGov {
         emit ProposeNewProposers(id, msg.sender, newProposers);
     }
 
+    // proposal type 2: add a new smartbchd node
     function proposeNewNode(bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro) public onlyProposer {
         NodeInfo memory node = NodeInfo(0, pubkeyHash, rpcUrl, intro);
         proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
@@ -101,6 +103,7 @@ contract CCSbchNodesGov {
         emit ProposeNewNode(id, msg.sender, pubkeyHash, rpcUrl, intro);
     }
 
+    // proposal type 3: remove a smartbchd node
     function proposeObsoleteNode(uint nodeId) public onlyProposer {
         uint nodeIdx = nodeIdxById[nodeId];
         require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId, 'no-such-node');
@@ -111,6 +114,7 @@ contract CCSbchNodesGov {
         emit ProposeObsoleteNode(id, msg.sender, nodeId);
     }
 
+    // vote for a pending proposal
     function voteProposal(uint id, bool agreed) public onlyProposer {
         require(id >= minProposalId, 'outdated-proposal');
         require(id < proposals.length, 'no-such-proposal');
@@ -121,6 +125,7 @@ contract CCSbchNodesGov {
         _vote(id, agreed);
         emit VoteProposal(id, msg.sender, agreed);
     }
+
     function _vote(uint id, bool agreed) private {        
         uint idx = proposerIdxByAddr[msg.sender];
         uint mask = 1 << (idx & 0xff);
@@ -131,12 +136,13 @@ contract CCSbchNodesGov {
         }
     }
 
+    // when the operator set changes, anyone can use this function to sync the proposer set to this operator set.
     function syncProposers() public {
         ICCOperatorsGov opGov = ICCOperatorsGov(OPERATORS_GOV_ADDR);
         address[] memory addrList = opGov.operatorAddrList();
         bytes32 hash = keccak256(abi.encode(addrList));
-        if(syncProposersHash == hash) {
-            return;
+        if(syncProposersHash == hash) { //when the operator set changes, the resyncing will only happen once
+            return; // already synced before, do nothing
         }
         syncProposersHash = hash;
         clearOldProposers();
@@ -144,6 +150,7 @@ contract CCSbchNodesGov {
         minProposalId = proposals.length;
     }
 
+    // if 2/3 of the proposers agree with a proposal, anyone can execute this proposal
     function execProposal(uint id) public {
         require(id >= minProposalId, 'outdated-proposal');
         require(id < proposals.length, 'no-such-proposal');
@@ -162,12 +169,12 @@ contract CCSbchNodesGov {
             delete proposals[id];
         } else if (proposal.newNode.pubkeyHash > 0) {
             NodeInfo storage node = proposal.newNode;
-            node.id = ++lastNodeId;
+            node.id = ++lastNodeId; // assign a unique id
             nodes.push(node);
-            nodeIdxById[node.id] = nodes.length - 1;
+            nodeIdxById[node.id] = nodes.length - 1; // maintain the id-to-index map
             delete proposals[id];
         } else {
-            assert(proposal.obsoleteNodeId > 0);
+            assert(proposal.obsoleteNodeId > 0); // nodeId starts from 1
             removeNodeById(proposal.obsoleteNodeId);
             delete proposals[id];
         }
@@ -175,6 +182,7 @@ contract CCSbchNodesGov {
         emit ExecProposal(id);
     }
 
+    // a monitor can remove a node immediately without voting
     function removeNode(uint id) public onlyMonitor {
         removeNodeById(id);
         emit RemoveNodeByMonitor(id, msg.sender);
@@ -186,12 +194,14 @@ contract CCSbchNodesGov {
             votes >>= 1;
         }
     }
+    // clear the variable 'proposerIdxByAddr' and 'proposers'
     function clearOldProposers() private {
         for (uint i = proposers.length; i > 0; i--) {
             delete proposerIdxByAddr[proposers[i - 1]];
             proposers.pop();
         }
     }
+    // modify the variable 'proposerIdxByAddr' and 'proposers' to add a new proposer
     function setNewProposers(address[] memory newProposers) private {
         for (uint i = 0; i < newProposers.length; i++) {
             setNewProposer(newProposers[i], i);
@@ -207,20 +217,21 @@ contract CCSbchNodesGov {
         return proposers.length > 0 && proposers[idx] == addr;
     }
 
+    // from 'nodes' remove an entry whose id is 'nodeId', and shrink 'nodes'
     function removeNodeById(uint nodeId) internal {
         uint nodeIdx = nodeIdxById[nodeId];
         require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId,
             'no-such-node');
 
-        if (nodes.length > 1) {
-            NodeInfo storage lastNode = nodes[nodes.length - 1];
+        uint lastIndex = nodes.length - 1;
+        if (nodes.length > 1 && nodeIdx != lastIndex) {
+            NodeInfo storage lastNode = nodes[lastIndex];
             nodes[nodeIdx] = lastNode;
-            nodeIdxById[lastNode.id] = nodeIdx;
+            nodeIdxById[lastNode.id] = nodeIdx; // maintain the id-to-index map
         }
         nodes.pop();
         delete nodeIdxById[nodeId];
     }
-
 }
 
 contract CCSbchNodesGovForUT is CCSbchNodesGov {
