@@ -35,7 +35,7 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
 
     address constant private SEP206_ADDR = address(uint160(0x2711));
 
-    uint constant MIN_STAKED_AMT = 100_000 ether; // TODO: change this
+    uint constant MIN_STAKED_AMT = 0.1 ether; // TODO: change this
 
     address immutable OPERATORS_GOV_ADDR;
 
@@ -58,17 +58,14 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
 
         for (uint i = 0; i < monitorList.length; i++) {
             MonitorInfo memory monitor = monitorList[i];
-
-            require(monitor.stakedAmt >= MIN_STAKED_AMT, 'staked-too-less');
-            IERC20(SEP206_ADDR).safeTransferFrom(
-                monitor.addr, address(this), monitor.stakedAmt);
-
-            monitor.electedTime = block.timestamp;
-            monitor.oldElectedTime = 0;
-
-            monitorIdxByAddr[monitor.addr] = monitors.length;
-            monitors.push(monitor);
+            deductBCH(monitor.addr, monitor.stakedAmt);
+            addNewMonitor(monitor.addr, uint8(monitor.pubkeyPrefix), monitor.pubkeyX,
+                monitor.intro, monitor.stakedAmt, block.timestamp);
         }
+    }
+
+    function deductBCH(address monitorAddr, uint amount) internal virtual {
+        IERC20(SEP206_ADDR).safeTransferFrom(monitorAddr, address(this), amount);
     }
 
     // which operators have nominated this monitor?
@@ -92,26 +89,34 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
                           bytes32 pubkeyX,
                           bytes32 intro) public payable {
         // require(monitors.length > 0, 'not-initialized');
-        require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
-        require(msg.value >= MIN_STAKED_AMT, 'deposit-too-less');
+        addNewMonitor(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0);
+        emit MonitorApply(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value);
+    }
 
-        uint monitorIdx = monitorIdxByAddr[msg.sender];
+    function addNewMonitor(address monitorAddr,
+                           uint8 pubkeyPrefix,
+                           bytes32 pubkeyX,
+                           bytes32 intro,
+                           uint stakedAmt,
+                           uint electedTime) private {
+        require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
+        require(stakedAmt >= MIN_STAKED_AMT, 'deposit-too-less');
+
+        uint monitorIdx = monitorIdxByAddr[monitorAddr];
         require(monitorIdx == 0, 'monitor-existed'); // zero means not-existed or locate at [0]
         if (monitors.length > 0) { // make sure it does not locate at [0]          
-            require(monitors[0].addr != msg.sender, 'monitor-existed');
+            require(monitors[0].addr != monitorAddr, 'monitor-existed');
         }
 
         if (freeSlots.length > 0) { // if the 'monitors' list has free slots, i.e., empty slots
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
-            monitors[freeSlot] = MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0, new address[](0));
-            monitorIdxByAddr[msg.sender] = freeSlot;
+            monitors[freeSlot] = MonitorInfo(monitorAddr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, 0, new address[](0));
+            monitorIdxByAddr[monitorAddr] = freeSlot;
         } else { // no free slot, so we must enlarge the 'monitors' list
-            monitors.push(MonitorInfo(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value, 0, 0, new address[](0)));
-            monitorIdxByAddr[msg.sender] = monitors.length - 1;
+            monitors.push(MonitorInfo(monitorAddr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, 0, new address[](0)));
+            monitorIdxByAddr[monitorAddr] = monitors.length - 1;
         }
-
-        emit MonitorApply(msg.sender, pubkeyPrefix, pubkeyX, intro, msg.value);
     }
 
     // anyone can increase a monitor's self-stake as a donation (but only the monitor can unstake it)
@@ -203,6 +208,10 @@ contract CCMonitorsGovForUT is CCMonitorsGov {
 
     function setLastElectionTime() public {
         lastElectionTime = block.timestamp;
+    }
+
+    function deductBCH(address opAddr, uint amount) internal override {
+        // do nothing
     }
 
 }

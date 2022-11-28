@@ -45,7 +45,7 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
 
     address constant private SEP206_ADDR = address(uint160(0x2711));
 
-    uint constant MIN_SELF_STAKED_AMT = 10_000 ether; // TODO: change this
+    uint constant MIN_SELF_STAKED_AMT = 0.1 ether; // TODO: change this
     uint constant MIN_STAKING_PERIOD = 100 days;      // TODO: change this
 
     OperatorInfo[] public operators; // read&written by Golang
@@ -59,18 +59,14 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
 
         for (uint i = 0; i < opList.length; i++) {
             OperatorInfo memory operator = opList[i];
-
-            require(operator.selfStakedAmt >= MIN_SELF_STAKED_AMT, 'staked-too-less');
-            IERC20(SEP206_ADDR).safeTransferFrom(
-                operator.addr, address(this), operator.selfStakedAmt);
-
-            operator.electedTime = block.timestamp;
-            operator.oldElectedTime = 0;
-            operator.totalStakedAmt = operator.selfStakedAmt;
-
-            operatorIdxByAddr[operator.addr] = operators.length;
-            operators.push(operator);
+            deductBCH(operator.addr, operator.selfStakedAmt);
+            addNewOperator(operator.addr, uint8(operator.pubkeyPrefix), operator.pubkeyX,
+                operator.rpcUrl, operator.intro, operator.selfStakedAmt, block.timestamp);
         }
+    }
+
+    function deductBCH(address operatorAddr, uint amount) internal virtual {
+        IERC20(SEP206_ADDR).safeTransferFrom(operatorAddr, address(this), amount);
     }
 
     function operatorAddrList() external view override returns (address[] memory) {
@@ -121,29 +117,39 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
                            bytes32 pubkeyX,
                            bytes32 rpcUrl, 
                            bytes32 intro) public payable {
+        addNewOperator(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, 0);
+        emit OperatorApply(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value);
+        emit OperatorStake(msg.sender, msg.sender, stakeInfos.length - 1, msg.value);
+    }
+
+    function addNewOperator(address operatorAddr,
+                            uint8 pubkeyPrefix,
+                            bytes32 pubkeyX,
+                            bytes32 rpcUrl, 
+                            bytes32 intro,
+                            uint selfStakedAmt,
+                            uint electedTime) private {
         // require(operators.length > 0, 'not-initialized');
         require(pubkeyPrefix == 0x02 || pubkeyPrefix == 0x03, 'invalid-pubkey-prefix');
-        require(msg.value >= MIN_SELF_STAKED_AMT, 'deposit-too-less'); // self stake
+        require(selfStakedAmt >= MIN_SELF_STAKED_AMT, 'deposit-too-less'); // self stake
 
-        uint operatorIdx = operatorIdxByAddr[msg.sender];
+        uint operatorIdx = operatorIdxByAddr[operatorAddr];
         require(operatorIdx == 0, 'operator-existed'); // zero means not-existed or locate at [0]
         if (operators.length > 0) { // make sure it does not locate at [0]
-            require(operators[0].addr != msg.sender, 'operator-existed');
+            require(operators[0].addr != operatorAddr, 'operator-existed');
         }
 
         if (freeSlots.length > 0) { // if the 'operators' list has free slots, i.e., empty slots
             uint freeSlot = freeSlots[freeSlots.length - 1];
             freeSlots.pop();
-            operators[freeSlot] = OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0);
-            operatorIdxByAddr[msg.sender] = freeSlot;
+            operators[freeSlot] = OperatorInfo(operatorAddr, pubkeyPrefix, pubkeyX, rpcUrl, intro, selfStakedAmt, selfStakedAmt, electedTime, 0);
+            operatorIdxByAddr[operatorAddr] = freeSlot;
         } else { // no free slot, so we must enlarge the 'operators' list
-            operators.push(OperatorInfo(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value, msg.value, 0, 0));
-            operatorIdxByAddr[msg.sender] = operators.length - 1;
+            operators.push(OperatorInfo(operatorAddr, pubkeyPrefix, pubkeyX, rpcUrl, intro, selfStakedAmt, selfStakedAmt, electedTime, 0));
+            operatorIdxByAddr[operatorAddr] = operators.length - 1;
         }
 
-        stakeInfos.push(StakeInfo(msg.sender, msg.sender, uint32(block.timestamp), msg.value));
-        emit OperatorApply(msg.sender, pubkeyPrefix, pubkeyX, rpcUrl, intro, msg.value);
-        emit OperatorStake(msg.sender, msg.sender, stakeInfos.length - 1, msg.value);
+        stakeInfos.push(StakeInfo(operatorAddr, msg.sender, uint32(block.timestamp), selfStakedAmt));
     }
 
     // stake BCH to vote for an operator candidate
@@ -231,6 +237,10 @@ contract CCOperatorsGovForUT is CCOperatorsGov {
 
     function setElectedTime(uint opIdx, uint ts) public {
         operators[opIdx].electedTime = ts;
+    }
+
+    function deductBCH(address opAddr, uint amount) internal override {
+        // do nothing
     }
 
 }

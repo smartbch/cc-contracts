@@ -205,6 +205,8 @@ async function listOperators(govAddr) {
       console.log('operator      :', i);
       console.log('addr          :', operator.addr);
       console.log('pubkey        :', '0x0' + operator.pubkeyPrefix + operator.pubkeyX.replace('0x', ''));
+      console.log('rpcUrl        :', ethers.utils.parseBytes32String(operator.rpcUrl));
+      console.log('intro         :', ethers.utils.parseBytes32String(operator.intro));
       console.log('totalStakedAmt:', ethers.utils.formatUnits(operator.totalStakedAmt));
       console.log('selfStakedAmt :', ethers.utils.formatUnits(operator.selfStakedAmt));
       console.log('electedTime   :', operator.electedTime.toNumber());
@@ -265,6 +267,8 @@ async function listMonitors(govAddr) {
       console.log('monitor    :', i);
       console.log('addr       :', monitor.addr);
       console.log('pubkey     :', '0x0' + monitor.pubkeyPrefix + monitor.pubkeyX.replace('0x', ''));
+      console.log('rpcUrl     :', ethers.utils.parseBytes32String(operator.rpcUrl));
+      console.log('intro      :', ethers.utils.parseBytes32String(operator.intro));
       console.log('stakedAmt  :', ethers.utils.formatUnits(monitor.stakedAmt));
       console.log('electedTime:', monitor.electedTime.toNumber());
     } catch (err) {
@@ -308,9 +312,10 @@ async function listSbchdNodes(govAddr) {
   for (let i = 0; i < n; i++) {
     try {
       let [id, pubkeyHash, rpcUrl] = await gov.nodes(i);
-      console.log('id:', id.toNumber());
-      console.log('rpcUrl:', ethers.utils.parseBytes32String(rpcUrl));
+      console.log('id     :', id.toNumber());
       console.log('pbkHash:', pubkeyHash);
+      console.log('rpcUrl :', ethers.utils.parseBytes32String(rpcUrl));
+      console.log('intro  :', ethers.utils.parseBytes32String(intro));
     } catch (err) {
       console.log(err);
       break;

@@ -28,7 +28,7 @@ const testIntro6   = ethers.utils.formatBytes32String('intro66');
 const [testPkX, testRpcUrl, testIntro] = [testPkX1, testRpcUrl1, testIntro1];
 
 
-const minSelfStakedAmt = ethers.utils.parseUnits('10000');
+const minSelfStakedAmt = ethers.utils.parseUnits('0.1');
 const minStakingPeriod = 100 * 24 * 3600;
 
 describe("CCOperatorsGov", function () {
@@ -46,6 +46,14 @@ describe("CCOperatorsGov", function () {
     const { gov, op1, op2, op3 } = await loadFixture(deployGov);
     await expect(gov.connect(op3).init([]))
       .to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it("init: already-initialized", async () => {
+    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+    await gov.connect(op1).applyOperator(0x02, testPkX1, testRpcUrl1, testIntro1,
+      {value: minSelfStakedAmt.add(1)});
+    await gov.setElectedTime(0, 123456789);
+    await expect(gov.init([])).to.be.revertedWith('already-initialized');
   });
 
   it("applyOperator: invalid-pubkey-prefix", async () => {

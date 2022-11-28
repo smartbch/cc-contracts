@@ -22,7 +22,7 @@ const testIntro6 = ethers.utils.formatBytes32String('intro66');
 const [testPkX, testIntro] = [testPkX1, testIntro1];
 
 
-const minStakedAmt = ethers.utils.parseUnits('100000');
+const minStakedAmt = ethers.utils.parseUnits('0.1');
 
 describe("CCMonitorsGov", function () {
 
@@ -42,6 +42,14 @@ describe("CCMonitorsGov", function () {
     const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
     await expect(gov.connect(mo3).init([]))
       .to.be.revertedWith('Ownable: caller is not the owner');
+  });
+
+  it("init: already-initialized", async () => {
+    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
+    await gov.connect(mo2).applyMonitor(0x02, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
+    await gov.setElectedTime(1, 123456789);
+    await expect(gov.init([])).to.be.revertedWith('already-initialized');
   });
 
   it("applyMonitor: invalid-pubkey-prefix", async () => {
