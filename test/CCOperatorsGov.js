@@ -42,10 +42,36 @@ describe("CCOperatorsGov", function () {
     return { gov, op1, op2, op3, op4, op5, op6 };
   }
 
-  it("init: not-owner", async () => {
+  it("init", async () => {
     const { gov, op1, op2, op3 } = await loadFixture(deployGov);
+
+    // default operator fields
+    let [addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime]
+        = [op1.address, 0x02, testPkX, testRpcUrl, testIntro, minSelfStakedAmt, minSelfStakedAmt, 0, 0];
+
     await expect(gov.connect(op3).init([]))
       .to.be.revertedWith('Ownable: caller is not the owner');
+    await expect(gov.init([{addr, pubkeyPrefix: 0x04, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime}]))
+      .to.be.revertedWith('invalid-pubkey-prefix');
+    await expect(gov.init([{addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt: 1234, electedTime, oldElectedTime}]))
+      .to.be.revertedWith('deposit-too-less');
+
+    await expect(gov.init([
+      {addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime},
+      {addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime},
+    ])).to.be.revertedWith('operator-existed');
+
+    // ok
+    gov.init([{addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime}]);
+
+    await expect(gov.init([{addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime}]))
+      .to.be.revertedWith('already-initialized');
+  
+    const operators = await getAllOperatorInfos(gov);
+    expect(operators.map(x => {x.pop(); return x;})).to.deep.equal([
+      [op1.address, 0x02, testPkX1, testRpcUrl, testIntro1, minSelfStakedAmt, minSelfStakedAmt],
+    ]);
+    expect(operators[0].pop()).to.be.gt(0); // electedTime
   });
 
   it("init: already-initialized", async () => {

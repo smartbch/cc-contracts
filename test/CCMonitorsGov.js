@@ -38,18 +38,36 @@ describe("CCMonitorsGov", function () {
     return { gov, mo1, mo2, mo3, mo4, mo5, mo6, opsGov };
   }
 
-  it("init: not-owner", async () => {
+  it("init", async () => {
     const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+
+    // default monitor fields
+    let [addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy]
+        = [mo1.address, 0x02, testPkX, testIntro, minStakedAmt, 0, 0, []];
+
     await expect(gov.connect(mo3).init([]))
       .to.be.revertedWith('Ownable: caller is not the owner');
-  });
+    await expect(gov.init([{addr, pubkeyPrefix: 0x04, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy}]))
+      .to.be.revertedWith('invalid-pubkey-prefix');
+    await expect(gov.init([{addr, pubkeyPrefix, pubkeyX, intro, stakedAmt: 1234, electedTime, oldElectedTime, nominatedBy}]))
+      .to.be.revertedWith('deposit-too-less');
 
-  it("init: already-initialized", async () => {
-    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
-    await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await gov.connect(mo2).applyMonitor(0x02, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
-    await gov.setElectedTime(1, 123456789);
-    await expect(gov.init([])).to.be.revertedWith('already-initialized');
+    await expect(gov.init([
+      {addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy},
+      {addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy},
+    ])).to.be.revertedWith('monitor-existed');
+
+    // ok
+    gov.init([{addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy}]);
+
+    await expect(gov.init([{addr, pubkeyPrefix, pubkeyX, intro, stakedAmt, electedTime, oldElectedTime, nominatedBy}]))
+      .to.be.revertedWith('already-initialized');
+  
+    const monitors = await getAllMonitorInfos(gov);
+    expect(monitors.map(x => {x.pop(); return x;})).to.deep.equal([
+      [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt],
+    ]);
+    expect(monitors[0].pop()).to.be.gt(0); // electedTime
   });
 
   it("applyMonitor: invalid-pubkey-prefix", async () => {
