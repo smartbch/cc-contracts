@@ -267,8 +267,7 @@ async function listMonitors(govAddr) {
       console.log('monitor    :', i);
       console.log('addr       :', monitor.addr);
       console.log('pubkey     :', '0x0' + monitor.pubkeyPrefix + monitor.pubkeyX.replace('0x', ''));
-      console.log('rpcUrl     :', ethers.utils.parseBytes32String(operator.rpcUrl));
-      console.log('intro      :', ethers.utils.parseBytes32String(operator.intro));
+      console.log('intro      :', ethers.utils.parseBytes32String(monitor.intro));
       console.log('stakedAmt  :', ethers.utils.formatUnits(monitor.stakedAmt));
       console.log('electedTime:', monitor.electedTime.toNumber());
     } catch (err) {
