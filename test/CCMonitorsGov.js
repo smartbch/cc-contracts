@@ -126,38 +126,39 @@ describe("CCMonitorsGov", function () {
   it("addStake: errors", async () => {
     const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
 
-    await expect(gov.connect(mo1).addStake())
+    await expect(gov.connect(mo1).addStake(mo1.address))
         .to.be.revertedWith('not-monitor');
 
     await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
-    await expect(gov.connect(mo2).addStake())
+    await expect(gov.connect(mo2).addStake(mo2.address))
         .to.be.revertedWith('not-monitor');
-    await expect(gov.connect(mo3).addStake())
+    await expect(gov.connect(mo3).addStake(mo3.address))
         .to.be.revertedWith('not-monitor');
-    await expect(gov.connect(mo1).addStake())
+    await expect(gov.connect(mo1).addStake(mo1.address))
         .to.be.revertedWith('deposit-nothing');
   });
 
   it("addStake: ok", async () => {
-    const { gov, mo1, mo2, mo3 } = await loadFixture(deployGov);
+    const { gov, mo1, mo2, mo3, mo4 } = await loadFixture(deployGov);
     await gov.connect(mo1).applyMonitor(0x02, testPkX1, testIntro1, {value: minStakedAmt.add(1)});
     await gov.connect(mo2).applyMonitor(0x03, testPkX2, testIntro2, {value: minStakedAmt.add(2)});
     await gov.connect(mo3).applyMonitor(0x02, testPkX3, testIntro3, {value: minStakedAmt.add(3)});
     expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(6));
 
-    await expect(gov.connect(mo1).addStake({value: 100}))
+    await expect(gov.connect(mo1).addStake(mo1.address, {value: 100}))
         .to.emit(gov, 'MonitorStake').withArgs(mo1.address, 100);
-    await expect(gov.connect(mo2).addStake({value: 200}))
+    await expect(gov.connect(mo2).addStake(mo2.address, {value: 200}))
         .to.emit(gov, 'MonitorStake').withArgs(mo2.address, 200);
-    await expect(gov.connect(mo3).addStake({value: 300}))
+    await expect(gov.connect(mo3).addStake(mo3.address, {value: 300}))
         .to.emit(gov, 'MonitorStake').withArgs(mo3.address, 300);
-    expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(606));
-
+    await expect(gov.connect(mo4).addStake(mo3.address, {value: 400}))
+        .to.emit(gov, 'MonitorStake').withArgs(mo3.address, 400);
+    expect(await getBalance(gov)).to.be.equal(minStakedAmt.mul(3).add(1006));
     expect(await getAllMonitorInfos(gov)).to.deep.equal([
       // addr, pubkeyPrefix, pubkeyX,  intro,      stakedAmt, electedTime
       [mo1.address, 0x02, testPkX1, testIntro1, minStakedAmt.add(101), 0],
       [mo2.address, 0x03, testPkX2, testIntro2, minStakedAmt.add(202), 0],
-      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(303), 0],
+      [mo3.address, 0x02, testPkX3, testIntro3, minStakedAmt.add(703), 0],
     ]);
   });
 
