@@ -120,11 +120,11 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
     }
 
     // anyone can increase a monitor's self-stake as a donation (but only the monitor can unstake it)
-    function addStake() public payable {
-        (MonitorInfo storage monitor,) = loadMonitorInfo(msg.sender);
+    function addStake(address addr) public payable {
+        (MonitorInfo storage monitor,) = loadMonitorInfo(addr);
         require(msg.value > 0, 'deposit-nothing');
         monitor.stakedAmt += msg.value;
-        emit MonitorStake(msg.sender, msg.value);
+        emit MonitorStake(addr, msg.value);
     }
 
     // a monitor removes part or all of its self-stake
