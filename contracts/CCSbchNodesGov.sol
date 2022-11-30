@@ -58,9 +58,7 @@ contract CCSbchNodesGov {
         OPERATORS_GOV_ADDR = operatorsGovAddr;
         require(_proposers.length > 0, 'no-proposers');
         require(_proposers.length <= 256, 'too-many-proposers');
-        for (uint i = 0; i < _proposers.length; i++) {
-            setNewProposer(_proposers[i], i);
-        }
+        setNewProposers(_proposers);
     }
 
     function getNodeCount() public view returns (uint) {
@@ -126,7 +124,7 @@ contract CCSbchNodesGov {
         emit VoteProposal(id, msg.sender, agreed);
     }
 
-    function _vote(uint id, bool agreed) private {        
+    function _vote(uint id, bool agreed) private {
         uint idx = proposerIdxByAddr[msg.sender];
         uint mask = 1 << (idx & 0xff);
         if (agreed) {
@@ -166,19 +164,16 @@ contract CCSbchNodesGov {
             clearOldProposers();
             setNewProposers(proposal.newProposers);
             minProposalId = proposals.length;
-            delete proposals[id];
         } else if (proposal.newNode.pubkeyHash > 0) {
             NodeInfo storage node = proposal.newNode;
             node.id = ++lastNodeId; // assign a unique id
             nodes.push(node);
             nodeIdxById[node.id] = nodes.length - 1; // maintain the id-to-index map
-            delete proposals[id];
         } else {
             assert(proposal.obsoleteNodeId > 0); // nodeId starts from 1
             removeNodeById(proposal.obsoleteNodeId);
-            delete proposals[id];
         }
-
+        delete proposals[id];
         emit ExecProposal(id);
     }
 
@@ -236,7 +231,7 @@ contract CCSbchNodesGov {
 
 contract CCSbchNodesGovForUT is CCSbchNodesGov {
 
-    constructor(address monitorsGovAddr, address operatorsGovAddr, address[] memory _proposers) 
+    constructor(address monitorsGovAddr, address operatorsGovAddr, address[] memory _proposers)
         CCSbchNodesGov(monitorsGovAddr, operatorsGovAddr, _proposers) {}
 
     function getProposerIdx(address addr) public view returns (uint) {
