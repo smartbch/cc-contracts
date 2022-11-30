@@ -173,7 +173,7 @@ contract CCMonitorsGov is ICCMonitorsGov, Ownable {
 
 contract CCMonitorsGovForStorageTest is CCMonitorsGov {
 
-    constructor(address operatorsGovAddr) CCMonitorsGov(operatorsGovAddr) {}
+    constructor() CCMonitorsGov(address(0x0)) {}
 
     function setLastElectionTime(uint ts) public {
         lastElectionTime = ts;
