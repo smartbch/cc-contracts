@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SHA-Gate2</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+  </head>
+  <body>
+
+    <section class="section">
+      <h1 class="title">SmartBCH SHA-Gate2 Demo Frontend</h1>
+      <div class="tabs">
+        <ul>
+          <li id="tabSys" class="is-active"><a>System Contract</a></li>
+          <li id="tabOps"><a>Operators Gov</a></li>
+          <li id="tabMos"><a>Monitors Gov</a></li>
+          <li id="tabNds"><a>Nodes Gov</a></li>
+          <li id="tabUTXOs"><a>cc-UTXOs</a></li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="secSys" class="section">
+      <div class="panel is-link">
+        <p class="panel-heading">Monitors Only</p>
+        <div class="box">
+          <div class="field has-addons">
+            <div class="control">
+              <input class="input" type="text" placeholder="finalized block height">
+            </div>
+            <div class="control">
+              <button class="button is-link">Start Rescan</button>
+            </div>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnMoPause">Pause</button>
+            <button class="button is-link" id="btnMoResume">Resume</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Anyone</p>
+        <div class="box">
+          <div class="control">
+            <button class="button is-link" id="btnHandleUTXOs">Handle UTXOs</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Anyone</p>
+        <div class="box">     
+          <div class="field">
+            <label class="label">TXID (HEX, 32 bytes)</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000000000000000000000000000" id="redeemTxid">
+          </div> 
+          <div class="field">
+            <label class="label">Index</label>
+            <input class="input" type="text" placeholder="0" id="redeemIdx">
+          </div> 
+          <div class="field">
+            <label class="label">Target (address)</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="redeemTarget">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRedeem">Redeem</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secOps" class="section is-hidden">
+      <div class="panel is-link">
+        <p class="panel-heading">Operators Info</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Address</th>
+                  <th>Pubkey</th>
+                  <th>RPC URL</th>
+                  <th>Intro</th>
+                  <th>Total Staked</th>
+                  <th>Self Staked</th>
+                  <th>ElectedTime</th>
+                </tr>
+              </thead>
+              <tbody id="opsInfoRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshOps">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Apply for Operators</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">Compressed Pubkey (33 bytes, starts with 0x02 or 0x03)</label>
+            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="applyOpPbk">
+          </div> 
+          <div class="field">
+            <label class="label">RPC URL (bytes32)</label>
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyOpRpcUrl">
+          </div> 
+          <div class="field">
+            <label class="label">Introduction (bytes32)</label>
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyOpIntro">
+          </div>
+          <div class="field">
+            <label class="label">Initial Staked BCH</label>
+            <input class="input" type="text" placeholder="100" id="applyOpInitAmt">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnApplyOp">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Stake/Unstake Operators</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">Operator Address</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="stakeOpAddr">
+          </div>
+          <div class="field">
+            <label class="label">BCH Amount</label>
+            <input class="input" type="text" placeholder="100" id="stakeOpAmt">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnStakeOp">Stake</button>
+            <button class="button is-link" id="btnUnstakeOp">Unstake</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secMos" class="section is-hidden">
+      <div class="panel is-link">
+        <p class="panel-heading">Monitors Info</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Address</th>
+                  <th>Pubkey</th>
+                  <th>Intro</th>
+                  <th>Staked BCH</th>
+                  <th>ElectedTime</th>
+                  <th>Nominated By</th>
+                </tr>
+              </thead>
+              <tbody id="mosInfoRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshMos">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Apply for Monitors</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">Compressed Pubkey (33 bytes, starts with 0x02 or 0x03)</label>
+            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="applyMoPbk">
+          </div> 
+          <div class="field">
+            <label class="label">Introduction (bytes32)</label>
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyMoIntro">
+          </div>
+          <div class="field">
+            <label class="label">Initial Staked BCH</label>
+            <input class="input" type="text" placeholder="100" id="applyMoInitAmt">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnApplyMo">Apply</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Nominate New Monitor (Operators Only)</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">Monitor Address</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="nominateMoAddr">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnNominateMo">Nominate</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Add/Remove Stake</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">Monitor Address</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="stakeMoAddr">
+          </div>
+          <div class="field">
+            <label class="label">BCH Amount</label>
+            <input class="input" type="text" placeholder="100" id="stakeMoAmt">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnStakeMo">Deposit</button>
+            <button class="button is-link" id="btnUnstakeMo">Withdraw</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secNds" class="section is-hidden">
+      <div class="panel is-link">
+        <p class="panel-heading">RPC Nodes</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Pubkey Hash</th>
+                  <th>RPC URL</th>
+                  <th>Intro</th>
+                </tr>
+              </thead>
+              <tbody id="rpcNodesRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshNds">Refresh</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="secUTXOs" class="section">
+      <div class="panel is-link">
+        <p class="panel-heading">Redeemable UTXOs</p>
+        <div class="box">
+          ??
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Redeeming UTXOs</p>
+        <div class="box">
+          ??
+        </div>
+      </div>
+    </section>
+
+    <script type="module">
+import { ethers } from "./ethers-5.4.esm.min.js";
+import u from './umbrella-3.3.0.esm.js';
+import { toast } from './bulma-toast.esm.js';
+import opsGovJson from './CCOperatorsGov.json' assert {type: 'json'};
+import mosGovJson from './CCMonitorsGov.json'  assert {type: 'json'};
+import ndsGovJson from './CCSbchNodesGov.json' assert {type: 'json'};
+// console.log(opsGovJson);
+
+// ========== Gov Contracts ==========
+
+const opsGovAddr = '0xc1EA5DD58d4AeFb081b1b0804DD2fF517F794E4e';
+const mosGovAddr = '0x24728fA067C396E644d8163d8a446262DD7f42f9';
+const ndsGovAddr = '0xd83F82c5dF49E8c7E514a9c6E8CcBA23F1223AC7';
+
+const rpcUrl = 'http://18.141.161.139:8545';
+const provider = new ethers.providers.JsonRpcProvider({url: rpcUrl, timeout: 10000});
+const opsGov = new ethers.Contract(opsGovAddr, opsGovJson.abi, provider);
+const mosGov = new ethers.Contract(mosGovAddr, mosGovJson.abi, provider);
+const ndsGov = new ethers.Contract(ndsGovAddr, ndsGovJson.abi, provider);
+// console.log(opsGov);
+
+// ========== UI ==========
+
+const tabIds = ['#tabSys', '#tabOps', '#tabMos', '#tabNds', '#tabUTXOs'];
+const secIds = ['#secSys', '#secOps', '#secMos', '#secNds', '#secUTXOs'];
+
+// handle tab switching
+for (const tabId of tabIds) {
+  const secId = tabId.replace('tab', 'sec');
+  u(tabId).handle('click', (e) => {
+    u(tabId).addClass('is-active');
+    u(secId).removeClass('is-hidden');
+    tabIds.filter(x => x != tabId).forEach(x => u(x).removeClass('is-active'));
+    secIds.filter(x => x != secId).forEach(x => u(x).addClass('is-hidden'));
+  });
+}
+
+u('#btnRefreshOps').handle('click', async (e) => {
+  u('#btnRefreshOps').first().disabled = true;
+
+  u('#opsInfoRows').empty();
+  for (let i = 0; ; i++) {
+    try {
+      const opInfo = await opsGov.operators(i);
+      console.log(opInfo);
+      const pbk = '0x0' + opInfo.pubkeyPrefix + opInfo.pubkeyX.substring(2);
+      const electedTime = opInfo.electedTime > 0 ? new Date(opInfo.electedTime * 1000) : '';
+
+      u('#opsInfoRows').append(`<tr>
+  <td>${i}</td>
+  <td><abbr title='${opInfo.addr}'>${opInfo.addr.substring(0, 10)}</abbr></td>
+  <td><abbr title='${pbk}'>${pbk.substring(0, 10)}</abbr></td>
+  <td>${ethers.utils.parseBytes32String(opInfo.rpcUrl)}</td>
+  <td>${ethers.utils.parseBytes32String(opInfo.intro)}</td>
+  <td>${ethers.utils.formatUnits(opInfo.totalStakedAmt)}</td>
+  <td>${ethers.utils.formatUnits(opInfo.selfStakedAmt)}</td>
+  <td><abbr title='${electedTime}'>${opInfo.electedTime}</abbr></td>
+</tr>`);
+    } catch (e) {
+      console.log(e);
+      break;
+    }
+  }
+
+  u('#btnRefreshOps').first().disabled = false;
+});
+
+u('#btnRefreshMos').handle('click', async (e) => {
+  u('#btnRefreshMos').first().disabled = true;
+
+  u('#mosInfoRows').empty();
+  for (let i = 0; ; i++) {
+    try {
+      const moInfo = await mosGov.monitors(i);
+      console.log(moInfo);
+      const pbk = '0x0' + moInfo.pubkeyPrefix + moInfo.pubkeyX.substring(2);
+      const electedTime = moInfo.electedTime > 0 ? new Date(moInfo.electedTime * 1000) : '';
+      const nominatedBy = await mosGov.getNominatedBy(moInfo.addr);
+      // console.log(nominatedBy);
+
+      u('#mosInfoRows').append(`<tr>
+  <td>${i}</td>
+  <td><abbr title='${moInfo.addr}'>${moInfo.addr.substring(0, 10)}</abbr></td>
+  <td><abbr title='${pbk}'>${pbk.substring(0, 10)}</abbr></td>
+  <td>${ethers.utils.parseBytes32String(moInfo.intro)}</td>
+  <td>${ethers.utils.formatUnits(moInfo.stakedAmt)}</td>
+  <td><abbr title='${electedTime}'>${moInfo.electedTime}</abbr></td>
+  <td><abbr title='${nominatedBy}'>${nominatedBy.length}</abbr></td>
+</tr>`);
+    } catch (e) {
+      console.log(e);
+      break;
+    }
+  }
+
+  u('#btnRefreshMos').first().disabled = false;
+});
+
+u('#btnRefreshNds').handle('click', async (e) => {
+  u('#btnRefreshNds').first().disabled = true;
+
+  u('#rpcNodesRows').empty();
+  for (let i = 0; ; i++) {
+    try {
+      const nodeInfo = await ndsGov.nodes(i);
+      console.log(nodeInfo);
+
+      u('#rpcNodesRows').append(`<tr>
+  <td>${nodeInfo.id}</td>
+  <td>${nodeInfo.pubkeyHash}</td>
+  <td>${ethers.utils.parseBytes32String(nodeInfo.rpcUrl)}</td>
+  <td>${ethers.utils.parseBytes32String(nodeInfo.intro)}</td>
+</tr>`);
+    } catch (e) {
+      console.log(e);
+      break;
+    }
+  }
+
+  u('#btnRefreshNds').first().disabled = false;
+});
+
+
+    </script>
+  </body>
+</html>
