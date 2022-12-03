@@ -15,7 +15,7 @@
           <li id="tabSys" class="is-active"><a>System Contract</a></li>
           <li id="tabOps"><a>Operators Gov</a></li>
           <li id="tabMos"><a>Monitors Gov</a></li>
-          <li id="tabNds"><a>Nodes Gov</a></li>
+          <li id="tabNodes"><a>Nodes Gov</a></li>
           <li id="tabUTXOs"><a>cc-UTXOs</a></li>
         </ul>
       </div>
@@ -27,10 +27,10 @@
         <div class="box">
           <div class="field has-addons">
             <div class="control">
-              <input class="input" type="text" placeholder="finalized block height">
+              <input class="input" type="text" placeholder="finalized block height" id="tfRescanHeight">
             </div>
             <div class="control">
-              <button class="button is-link">Start Rescan</button>
+              <button class="button is-link" id='btnStartRescan'>Start Rescan</button>
             </div>
           </div>
           <div class="control">
@@ -216,7 +216,7 @@
       </div>
     </section>
 
-    <section id="secNds" class="section is-hidden">
+    <section id="secNodes" class="section is-hidden">
       <div class="panel is-link">
         <p class="panel-heading">RPC Nodes</p>
         <div class="box">
@@ -239,19 +239,96 @@
           </div>
         </div>
       </div>
+      <div class="panel is-link">
+        <p class="panel-heading">All Proposers</p>
+        <div class="box">
+          TODO
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">All Proposals</p>
+        <div class="box">
+          TODO
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Create New Proposal</p>
+        <div class="box">
+          TODO
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Vote for Proposal</p>
+        <div class="box">
+          TODO
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Execute Proposal</p>
+        <div class="box">
+          TODO
+        </div>
+      </div>
     </section>
 
     <section id="secUTXOs" class="section">
       <div class="panel is-link">
+        <p class="panel-heading">CC Info</p>
+        <div class="box">
+          <div class="field">
+            <textarea class="textarea" readonly id="txtCcInfo"></textarea>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshCC">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Faucet</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">ccCovenant Address (BCH)</label>
+            <input class="input" type="text" value="bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk" id="faucetCccAddr">
+          </div>
+          <div class="field">
+            <label class="label">Receiver Address (sBCH)</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="faucetUserAddr">
+          </div>
+          <div class="field">
+            <label class="label">Result</label>
+            <textarea class="textarea" readonly id="faucetAskResult"></textarea>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnFaucetSend">Send</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
         <p class="panel-heading">Redeemable UTXOs</p>
         <div class="box">
-          ??
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>CovenantAddr</th>
+                  <th>TXID</th>
+                  <th>Index</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="redeemableUtxosRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshRedeemableUtxos">Refresh</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">Redeeming UTXOs</p>
         <div class="box">
-          ??
+          TODO
         </div>
       </div>
     </section>
@@ -263,25 +340,67 @@ import { toast } from './bulma-toast.esm.js';
 import opsGovJson from './CCOperatorsGov.json' assert {type: 'json'};
 import mosGovJson from './CCMonitorsGov.json'  assert {type: 'json'};
 import ndsGovJson from './CCSbchNodesGov.json' assert {type: 'json'};
+import ccSysJson from './ICCSystemContract.json' assert {type: 'json'};
 // console.log(opsGovJson);
+
+// ========== Web3 ==========
+
+const provider3 = new ethers.providers.Web3Provider(window.ethereum);
+await provider3.send("eth_requestAccounts", []);
+const signer = provider3.getSigner();
+const myAddr = await signer.getAddress();
+console.log('myAddr:', myAddr);
 
 // ========== Gov Contracts ==========
 
 const opsGovAddr = '0xc1EA5DD58d4AeFb081b1b0804DD2fF517F794E4e';
 const mosGovAddr = '0x24728fA067C396E644d8163d8a446262DD7f42f9';
 const ndsGovAddr = '0xd83F82c5dF49E8c7E514a9c6E8CcBA23F1223AC7';
+const ccSysAddr  = '0x0000000000000000000000000000000000002714';
 
 const rpcUrl = 'http://18.141.161.139:8545';
-const provider = new ethers.providers.JsonRpcProvider({url: rpcUrl, timeout: 10000});
-const opsGov = new ethers.Contract(opsGovAddr, opsGovJson.abi, provider);
-const mosGov = new ethers.Contract(mosGovAddr, mosGovJson.abi, provider);
-const ndsGov = new ethers.Contract(ndsGovAddr, ndsGovJson.abi, provider);
-// console.log(opsGov);
+// const provider = new ethers.providers.JsonRpcProvider({url: rpcUrl, timeout: 10000});
+const opsGov = new ethers.Contract(opsGovAddr, opsGovJson.abi, signer);
+const mosGov = new ethers.Contract(mosGovAddr, mosGovJson.abi, signer);
+const ndsGov = new ethers.Contract(ndsGovAddr, ndsGovJson.abi, signer);
+const ccSys  = new ethers.Contract(ccSysAddr,  ccSysJson.abi,  signer);
+// console.log(ccSys);
+
+
+const ccFaucetServer = 'http://localhost:8887/spend';
+// const ccCovenantAddr = 'bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk';
+function askFaucet(covenantAddr, receiverAddr) {
+  const url = `${ccFaucetServer}?covenantAddr=${covenantAddr}&receiverAddr=${receiverAddr}`;
+  console.log(url);
+  return fetch(url)
+    .then(resp => resp.json())
+    .catch(err => err);
+}
+
 
 // ========== UI ==========
 
-const tabIds = ['#tabSys', '#tabOps', '#tabMos', '#tabNds', '#tabUTXOs'];
-const secIds = ['#secSys', '#secOps', '#secMos', '#secNds', '#secUTXOs'];
+const tabIds = ['#tabSys', '#tabOps', '#tabMos', '#tabNodes', '#tabUTXOs'];
+const secIds = ['#secSys', '#secOps', '#secMos', '#secNodes', '#secUTXOs'];
+
+function showMsg(msg) {
+  toast({
+    message: msg.toString(),
+    type: 'is-info',
+    dismissible: true,
+    duration: 2000,
+    // animate: { in: 'fadeIn', out: 'fadeOut' },
+  });
+}
+function showErr(err) {
+  toast({
+    message: '<code>' + JSON.stringify(err).replaceAll('\n', '<br/>') + '</code>',
+    type: 'is-warning',
+    dismissible: true,
+    duration: 10000,
+    // animate: { in: 'fadeIn', out: 'fadeOut' },
+  });
+}
 
 // handle tab switching
 for (const tabId of tabIds) {
@@ -291,13 +410,48 @@ for (const tabId of tabIds) {
     u(secId).removeClass('is-hidden');
     tabIds.filter(x => x != tabId).forEach(x => u(x).removeClass('is-active'));
     secIds.filter(x => x != secId).forEach(x => u(x).addClass('is-hidden'));
+    window.location.hash = tabId;
   });
 }
 
+// ---------- System Contract ----------
+
+// https://github.com/MetaMask/metamask-extension/issues/7286
+u('#btnStartRescan').handle('click', async (e) => {
+  const h = u('#tfRescanHeight').first().value;
+  console.log('btnStartRescan, h:', h);
+  if (h > 0) {
+    const tx = await ccSys.startRescan(h,
+        {gasPrice: 1050000000, gasLimit: 8_000_000});
+    console.log(tx);
+  }
+});
+
+u('#btnMoPause').handle('click', async (e) => {
+  console.log('btnMoPause');
+});
+
+u('#btnMoResume').handle('click', async (e) => {
+  console.log('btnMoResume');
+});
+
+u('#btnHandleUTXOs').handle('click', async (e) => {
+  console.log('btnHandleUTXOs');
+  const tx = await ccSys.handleUTXOs(
+      {type: 0, gasPrice: 1050000000, gasLimit: 8_000_000});
+  console.log(tx);
+});
+
+u('#btnRedeem').handle('click', async (e) => {
+  console.log('btnRedeem');
+});
+
+// ---------- Operators ----------
+
 u('#btnRefreshOps').handle('click', async (e) => {
   u('#btnRefreshOps').first().disabled = true;
-
   u('#opsInfoRows').empty();
+
   for (let i = 0; ; i++) {
     try {
       const opInfo = await opsGov.operators(i);
@@ -324,10 +478,12 @@ u('#btnRefreshOps').handle('click', async (e) => {
   u('#btnRefreshOps').first().disabled = false;
 });
 
+// ---------- Monitors ----------
+
 u('#btnRefreshMos').handle('click', async (e) => {
   u('#btnRefreshMos').first().disabled = true;
-
   u('#mosInfoRows').empty();
+
   for (let i = 0; ; i++) {
     try {
       const moInfo = await mosGov.monitors(i);
@@ -355,10 +511,12 @@ u('#btnRefreshMos').handle('click', async (e) => {
   u('#btnRefreshMos').first().disabled = false;
 });
 
+// ---------- Nodes ----------
+
 u('#btnRefreshNds').handle('click', async (e) => {
   u('#btnRefreshNds').first().disabled = true;
-
   u('#rpcNodesRows').empty();
+
   for (let i = 0; ; i++) {
     try {
       const nodeInfo = await ndsGov.nodes(i);
@@ -379,6 +537,51 @@ u('#btnRefreshNds').handle('click', async (e) => {
   u('#btnRefreshNds').first().disabled = false;
 });
 
+// ---------- ccUTXOs ----------
+
+u('#btnRefreshCC').handle('click', async (e) => {
+  u('#btnFaucetSend').first().disabled = true;
+  const result = await provider.send('sbch_getCcInfo', []);
+  u('#txtCcInfo').first().value = JSON.stringify(result, null, 2);
+  u('#btnFaucetSend').first().disabled = false;
+});
+
+u('#btnFaucetSend').handle('click', async (e) => {
+  const covenantAddr = u('#faucetCccAddr').first().value;
+  const receiverAddr = u('#faucetUserAddr').first().value;
+  // console.log(covenantAddr, receiverAddr);
+
+  u('#btnFaucetSend').first().disabled = true;
+  const result = await askFaucet(covenantAddr, receiverAddr);
+  u('#faucetAskResult').first().value = JSON.stringify(result);
+  u('#btnFaucetSend').first().disabled = false;
+});
+
+u('#btnRefreshRedeemableUtxos').handle('click', async (e) => {
+  u('#btnRefreshRedeemableUtxos').first().disabled = true;
+  u('#redeemableUtxosRows').empty();
+
+  const result = await provider.send('sbch_getRedeemableUtxos', []);
+  console.log(result);
+
+  (result.infos || []).forEach((utxo, idx) => {
+      u('#redeemableUtxosRows').append(`<tr>
+  <td>${utxo.covenantAddr}</td>
+  <td>${utxo.txid}</td>
+  <td>${utxo.index}</td>
+  <td>${utxo.amount / 10**8}</td>
+</tr>`);
+  });
+
+  u('#btnRefreshRedeemableUtxos').first().disabled = false;
+});
+
+// activate tab
+console.log(window.location);
+const tabId = window.location.hash;
+if (tabId) {
+  u(tabId).trigger('click');
+}
 
     </script>
   </body>
