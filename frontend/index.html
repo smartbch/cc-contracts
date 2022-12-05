@@ -101,23 +101,46 @@
         </div>
       </div>
       <div class="panel is-link">
+        <p class="panel-heading">All Stakings</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Stakeholder</th>
+                  <th>Operator</th>
+                  <th>Staked Time</th>
+                  <th>Staked Amount</th>
+                </tr>
+              </thead>
+              <tbody id="opsStakingsRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshOpStakings">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
         <p class="panel-heading">Apply for Operators</p>
         <div class="box">
           <div class="field">
             <label class="label">Compressed Pubkey (33 bytes, starts with 0x02 or 0x03)</label>
-            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="applyOpPbk">
+            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="tfApplyOpPbk">
           </div> 
           <div class="field">
             <label class="label">RPC URL (bytes32)</label>
-            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyOpRpcUrl">
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="tfApplyOpRpcUrl">
           </div> 
           <div class="field">
             <label class="label">Introduction (bytes32)</label>
-            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyOpIntro">
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="tfApplyOpIntro">
           </div>
           <div class="field">
             <label class="label">Initial Staked BCH</label>
-            <input class="input" type="text" placeholder="100" id="applyOpInitAmt">
+            <input class="input" type="text" placeholder="100" id="tfApplyOpInitAmt">
           </div>
           <div class="control">
             <button class="button is-link" id="btnApplyOp">Apply</button>
@@ -125,18 +148,33 @@
         </div>
       </div>
       <div class="panel is-link">
-        <p class="panel-heading">Stake/Unstake Operators</p>
+        <p class="panel-heading">Stake Operator</p>
         <div class="box">
           <div class="field">
             <label class="label">Operator Address</label>
-            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="stakeOpAddr">
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="tfStakeOpAddr">
           </div>
           <div class="field">
-            <label class="label">BCH Amount</label>
-            <input class="input" type="text" placeholder="100" id="stakeOpAmt">
+            <label class="label">Deposit Amount</label>
+            <input class="input" type="text" placeholder="1.0" id="tfStakeOpAmt">
           </div>
           <div class="control">
             <button class="button is-link" id="btnStakeOp">Stake</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Unstake Operator</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">StakeInfo ID</label>
+            <input class="input" type="text" placeholder="1" id="tfUnstakeInfoID">
+          </div>
+          <div class="field">
+            <label class="label">Withdraw Amount</label>
+            <input class="input" type="text" placeholder="1.0" id="tfUnstakeOpAmt">
+          </div>
+          <div class="control">
             <button class="button is-link" id="btnUnstakeOp">Unstake</button>
           </div>
         </div>
@@ -291,6 +329,10 @@
         <p class="panel-heading">Faucet</p>
         <div class="box">
           <div class="field">
+            <label class="label">Faucet Address (BCH)</label>
+            <input class="input" type="text" value="bchtest:qq9k6t9nx2z8svr39hkym5lkmajrrrmftu203d96nq" readonly>
+          </div>
+          <div class="field">
             <label class="label">ccCovenant Address (BCH)</label>
             <input class="input" type="text" value="bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk" id="faucetCccAddr">
           </div>
@@ -337,44 +379,6 @@
       </div>
     </section>
 
-
-    <div class="modal">
-      <div class="modal-background"></div>
-      <div class="modal-content">
-        <div class="panel is-warning">
-          <p class="panel-heading">
-            Warning
-          </p>
-          <div class="box">
-            <div class="field">
-              <textarea class="textarea" readonly id="xx"></textarea>
-            </div>
-          </div>
-        </div>
-      </div>
-      <button class="modal-close is-large" aria-label="close"></button>
-    </div>
-
-    <div class="modal">
-      <div class="modal-background"></div>
-      <div class="modal-card">
-        <header class="modal-card-head">
-          <p class="modal-card-title">Error</p>
-          <button class="delete" aria-label="close"></button>
-        </header>
-        <section class="modal-card-body">
-          <!-- Content ... -->
-          123
-        </section>
-        <!--
-        <footer class="modal-card-foot">
-          <button class="button is-success">Save changes</button>
-          <button class="button">Cancel</button>
-        </footer>
-        -->
-      </div>
-    </div>
-
     <script type="module">
 import { ethers } from "./ethers-5.4.esm.min.js";
 import u from './umbrella-3.3.0.esm.js';
@@ -409,7 +413,7 @@ const ccSys  = new ethers.Contract(ccSysAddr,  ccSysJson.abi,  signer);
 // console.log(ccSys);
 
 
-const ccFaucetServer = 'http://localhost:8887/spend';
+const ccFaucetServer = 'http://3.1.26.210:8887/spend';
 // const ccCovenantAddr = 'bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk';
 function askFaucet(covenantAddr, receiverAddr) {
   const url = `${ccFaucetServer}?covenantAddr=${covenantAddr}&receiverAddr=${receiverAddr}`;
@@ -436,7 +440,11 @@ function showMsg(msg) {
   });
 }
 function showErr(err) {
-  const errInfo = JSON.stringify(err, null, 2);
+  let errInfo = err.toString();
+  if (errInfo == '[object Object]') {
+    errInfo = JSON.stringify(err, null, 2);
+  }
+
   toast({
     message: '<code>' + errInfo + '</code>',
     type: 'is-warning',
@@ -546,6 +554,82 @@ u('#btnRefreshOps').handle('click', async (e) => {
 
   u('#btnRefreshOps').first().disabled = false;
 });
+
+u('#btnRefreshOpStakings').handle('click', async (e) => {
+  u('#btnRefreshOpStakings').first().disabled = true;
+  u('#opsStakingsRows').empty();
+
+  for (let i = 0; ; i++) {
+    try {
+      const sInfo = await opsGov.stakeInfos(i);
+      console.log(sInfo);
+      const sTime = sInfo.stakedTime > 0 ? new Date(sInfo.stakedTime * 1000) : '';
+
+      u('#opsStakingsRows').append(`<tr>
+  <td>${i}</td>
+  <td>${sInfo.staker}</td>
+  <td>${sInfo.operator}</td>
+  <td><abbr title='${sTime}'>${sInfo.stakedTime}</abbr></td>
+  <td>${ethers.utils.formatUnits(sInfo.stakedAmt)}</td>
+</tr>`);
+    } catch (e) {
+      console.log(e);
+      break;
+    }
+  }
+
+  u('#btnRefreshOpStakings').first().disabled = false;
+});
+
+u('#btnApplyOp').handle('click', async (e) => {
+  const pbk    = u('#tfApplyOpPbk').first().value;
+  const rpcUrl = u('#tfApplyOpRpcUrl').first().value;
+  const intro  = u('#tfApplyOpIntro').first().value;
+  const amt    = u('#tfApplyOpInitAmt').first().value;
+  console.log('apply op, pbk:', pbk, 'rpcUrl:', rpcUrl, 'intro:', rpcUrl, 'amt:', amt);
+
+  try {
+    const tx = await opsGov.applyOperator(
+      Number(pbk.substring(2, 4)), // pbkPrefix
+      '0x' + pbk.substring(4),     // pbkX
+      ethers.utils.formatBytes32String(rpcUrl),
+      ethers.utils.formatBytes32String(intro),
+      { value: ethers.utils.parseUnits(amt) },
+    );
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnStakeOp').handle('click', async (e) => {
+  const opAddr = u('#tfStakeOpAddr').first().value;
+  const amt    = u('#tfStakeOpAmt').first().value;
+  console.log('stake op, opAddr:', opAddr, 'amt:', amt);
+  try {
+    const tx = await opsGov.stakeOperator(
+      opAddr,
+      { value: ethers.utils.parseUnits(amt) },
+    );
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnUnstakeOp').handle('click', async (e) => {
+  const id  = u('#tfUnstakeInfoID').first().value;
+  const amt = u('#tfUnstakeOpAmt').first().value;
+  console.log('unstake op, id:', id, 'amt:', amt);
+  try {
+    const tx = await opsGov.unstakeOperator(id,
+      ethers.utils.parseUnits(amt));
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
 
 // ---------- Monitors ----------
 

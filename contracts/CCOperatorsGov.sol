@@ -149,7 +149,7 @@ contract CCOperatorsGov is ICCOperatorsGov, Ownable {
             operatorIdxByAddr[operatorAddr] = operators.length - 1;
         }
 
-        stakeInfos.push(StakeInfo(operatorAddr, msg.sender, uint32(block.timestamp), selfStakedAmt));
+        stakeInfos.push(StakeInfo(operatorAddr, operatorAddr, uint32(block.timestamp), selfStakedAmt));
     }
 
     // stake BCH to vote for an operator candidate

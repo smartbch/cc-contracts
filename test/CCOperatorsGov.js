@@ -47,7 +47,7 @@ describe("CCOperatorsGov", function () {
 
     // default operator fields
     let [addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime]
-        = [op1.address, 0x02, testPkX, testRpcUrl, testIntro, minSelfStakedAmt, minSelfStakedAmt, 0, 0];
+        = [op2.address, 0x02, testPkX, testRpcUrl, testIntro, minSelfStakedAmt, minSelfStakedAmt, 0, 0];
 
     await expect(gov.connect(op3).init([]))
       .to.be.revertedWith('Ownable: caller is not the owner');
@@ -63,13 +63,17 @@ describe("CCOperatorsGov", function () {
 
     // ok
     gov.init([{addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime}]);
+    expect(await getAllStakeInfos(gov)).to.deep.equal([
+      // staker,     operator,       stakedAmt,   stakedTimeGT0
+      [op2.address, op2.address, minSelfStakedAmt, true],
+    ]);
 
     await expect(gov.init([{addr, pubkeyPrefix, pubkeyX, rpcUrl, intro, totalStakedAmt, selfStakedAmt, electedTime, oldElectedTime}]))
       .to.be.revertedWith('already-initialized');
   
     const operators = await getAllOperatorInfos(gov);
     expect(operators.map(x => {x.pop(); return x;})).to.deep.equal([
-      [op1.address, 0x02, testPkX1, testRpcUrl, testIntro1, minSelfStakedAmt, minSelfStakedAmt],
+      [op2.address, 0x02, testPkX1, testRpcUrl, testIntro1, minSelfStakedAmt, minSelfStakedAmt],
     ]);
     expect(operators[0].pop()).to.be.gt(0); // electedTime
   });
