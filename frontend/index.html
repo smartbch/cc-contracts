@@ -52,15 +52,19 @@
         <div class="box">     
           <div class="field">
             <label class="label">TXID (HEX, 32 bytes)</label>
-            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000000000000000000000000000" id="redeemTxid">
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000000000000000000000000000" id="tfRedeemTxid">
           </div> 
           <div class="field">
             <label class="label">Index</label>
-            <input class="input" type="text" placeholder="0" id="redeemIdx">
+            <input class="input" type="text" placeholder="0" id="tfRedeemIdx">
+          </div> 
+          <div class="field">
+            <label class="label">Amount</label>
+            <input class="input" type="text" placeholder="1.0" id="tfRedeemAmt">
           </div> 
           <div class="field">
             <label class="label">Target (address)</label>
-            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="redeemTarget">
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="tfRedeemTarget">
           </div>
           <div class="control">
             <button class="button is-link" id="btnRedeem">Redeem</button>
@@ -333,6 +337,44 @@
       </div>
     </section>
 
+
+    <div class="modal">
+      <div class="modal-background"></div>
+      <div class="modal-content">
+        <div class="panel is-warning">
+          <p class="panel-heading">
+            Warning
+          </p>
+          <div class="box">
+            <div class="field">
+              <textarea class="textarea" readonly id="xx"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="modal-close is-large" aria-label="close"></button>
+    </div>
+
+    <div class="modal">
+      <div class="modal-background"></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Error</p>
+          <button class="delete" aria-label="close"></button>
+        </header>
+        <section class="modal-card-body">
+          <!-- Content ... -->
+          123
+        </section>
+        <!--
+        <footer class="modal-card-foot">
+          <button class="button is-success">Save changes</button>
+          <button class="button">Cancel</button>
+        </footer>
+        -->
+      </div>
+    </div>
+
     <script type="module">
 import { ethers } from "./ethers-5.4.esm.min.js";
 import u from './umbrella-3.3.0.esm.js';
@@ -353,13 +395,13 @@ console.log('myAddr:', myAddr);
 
 // ========== Gov Contracts ==========
 
-const opsGovAddr = '0xc1EA5DD58d4AeFb081b1b0804DD2fF517F794E4e';
-const mosGovAddr = '0x24728fA067C396E644d8163d8a446262DD7f42f9';
-const ndsGovAddr = '0xd83F82c5dF49E8c7E514a9c6E8CcBA23F1223AC7';
+const opsGovAddr = '0xA99eE02594E22bd94b82B98c993b9D9fC678bb23';
+const mosGovAddr = '0x5fb462677e30e6854AE8d129b76631f0dCeeA378';
+const ndsGovAddr = '0x2F9029c375ff8D1d43651301d42b1C441baa687B';
 const ccSysAddr  = '0x0000000000000000000000000000000000002714';
 
 const rpcUrl = 'http://18.141.161.139:8545';
-// const provider = new ethers.providers.JsonRpcProvider({url: rpcUrl, timeout: 10000});
+const provider = new ethers.providers.JsonRpcProvider({url: rpcUrl, timeout: 10000});
 const opsGov = new ethers.Contract(opsGovAddr, opsGovJson.abi, signer);
 const mosGov = new ethers.Contract(mosGovAddr, mosGovJson.abi, signer);
 const ndsGov = new ethers.Contract(ndsGovAddr, ndsGovJson.abi, signer);
@@ -389,15 +431,18 @@ function showMsg(msg) {
     type: 'is-info',
     dismissible: true,
     duration: 2000,
+    position: 'center',
     // animate: { in: 'fadeIn', out: 'fadeOut' },
   });
 }
 function showErr(err) {
+  const errInfo = JSON.stringify(err, null, 2);
   toast({
-    message: '<code>' + JSON.stringify(err).replaceAll('\n', '<br/>') + '</code>',
+    message: '<code>' + errInfo + '</code>',
     type: 'is-warning',
     dismissible: true,
     duration: 10000,
+    position: 'center',
     // animate: { in: 'fadeIn', out: 'fadeOut' },
   });
 }
@@ -420,30 +465,54 @@ for (const tabId of tabIds) {
 u('#btnStartRescan').handle('click', async (e) => {
   const h = u('#tfRescanHeight').first().value;
   console.log('btnStartRescan, h:', h);
-  if (h > 0) {
+  try {
     const tx = await ccSys.startRescan(h,
-        {gasPrice: 1050000000, gasLimit: 8_000_000});
+        {type: 0, gasLimit: 8_000_000 /*, gasPrice: 1050000000*/});
     console.log(tx);
+  } catch (err) {
+    showErr(err);
   }
 });
 
 u('#btnMoPause').handle('click', async (e) => {
   console.log('btnMoPause');
+  // TODO
 });
 
 u('#btnMoResume').handle('click', async (e) => {
   console.log('btnMoResume');
+  // TODO
 });
 
 u('#btnHandleUTXOs').handle('click', async (e) => {
   console.log('btnHandleUTXOs');
-  const tx = await ccSys.handleUTXOs(
-      {type: 0, gasPrice: 1050000000, gasLimit: 8_000_000});
-  console.log(tx);
+  try {
+    const tx = await ccSys.handleUTXOs(
+        {type: 0, gasLimit: 8_000_000 /*, gasPrice: 1050000000*/});
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 u('#btnRedeem').handle('click', async (e) => {
-  console.log('btnRedeem');
+  const txid = u('#tfRedeemTxid').first().value;
+  const idx = u('#tfRedeemIdx').first().value;
+  const amt = u('#tfRedeemAmt').first().value;
+  const toAddr = u('#tfRedeemTarget').first().value;
+  console.log('btnRedeem, txid:', txid, 'idx:', idx, 'amt:', amt, 'to:', toAddr);
+  try {    
+    const tx = await ccSys.redeem(txid, idx, toAddr,
+        {
+          type: 0, 
+          gasLimit: 8_000_000,
+          // gasPrice: 1050000000
+          value: ethers.utils.parseUnits(amt),
+        });
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 // ---------- Operators ----------
