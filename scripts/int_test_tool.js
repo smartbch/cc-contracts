@@ -310,7 +310,7 @@ async function listSbchdNodes(govAddr) {
   const n = await gov.getNodeCount();
   for (let i = 0; i < n; i++) {
     try {
-      let [id, pubkeyHash, rpcUrl] = await gov.nodes(i);
+      let [id, pubkeyHash, rpcUrl, intro] = await gov.nodes(i);
       console.log('id     :', id.toNumber());
       console.log('pbkHash:', pubkeyHash);
       console.log('rpcUrl :', ethers.utils.parseBytes32String(rpcUrl));

@@ -74,14 +74,6 @@ describe("CCOperatorsGov", function () {
     expect(operators[0].pop()).to.be.gt(0); // electedTime
   });
 
-  it("init: already-initialized", async () => {
-    const { gov, op1, op2, op3 } = await loadFixture(deployGov);
-    await gov.connect(op1).applyOperator(0x02, testPkX1, testRpcUrl1, testIntro1,
-      {value: minSelfStakedAmt.add(1)});
-    await gov.setElectedTime(0, 123456789);
-    await expect(gov.init([])).to.be.revertedWith('already-initialized');
-  });
-
   it("applyOperator: invalid-pubkey-prefix", async () => {
     const { gov } = await loadFixture(deployGov);
     const testCases = [0x00, 0x01, 0x04, 0x05, 0x09, 0x99, 0xff];

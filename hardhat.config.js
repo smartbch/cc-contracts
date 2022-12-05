@@ -26,7 +26,7 @@ module.exports = {
     shagate_test1: {
       url: `http://18.141.161.139:8545`,
       gasPrice: 10500000000,
-      accounts: [process.env.KEY || '0xe3d9be2e6430a9db8291ab1853f5ec2467822b33a1a08825a22fab1425d2bff9']
+      accounts: [process.env.KEY || '0x5cf5f6c787232a2b0f79c56e0ce4cc4c02c67f9e586c705f9168c29db4ca922a']
     }
   }
 };

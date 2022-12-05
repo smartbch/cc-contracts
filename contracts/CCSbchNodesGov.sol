@@ -1,11 +1,12 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import { ICCMonitorsGov } from "./CCMonitorsGov.sol";
 import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 // import "hardhat/console.sol";
 
-contract CCSbchNodesGov {
+contract CCSbchNodesGov is Ownable {
 
     struct NodeInfo {
         uint id; // a unique id for a node starting from 1. It never changes.
@@ -59,6 +60,13 @@ contract CCSbchNodesGov {
         require(_proposers.length > 0, 'no-proposers');
         require(_proposers.length <= 256, 'too-many-proposers');
         setNewProposers(_proposers);
+    }
+
+    function init(NodeInfo[] memory nodeList) public onlyOwner {
+        require(nodes.length == 0, 'already-initialized');
+        for (uint i = 0; i < nodeList.length; i++) {
+            addNewNode(nodeList[i]);
+        }
     }
 
     function getNodeCount() public view returns (uint) {
@@ -165,16 +173,19 @@ contract CCSbchNodesGov {
             setNewProposers(proposal.newProposers);
             minProposalId = proposals.length;
         } else if (proposal.newNode.pubkeyHash > 0) {
-            NodeInfo storage node = proposal.newNode;
-            node.id = ++lastNodeId; // assign a unique id
-            nodes.push(node);
-            nodeIdxById[node.id] = nodes.length - 1; // maintain the id-to-index map
+            addNewNode(proposal.newNode);
         } else {
             assert(proposal.obsoleteNodeId > 0); // nodeId starts from 1
             removeNodeById(proposal.obsoleteNodeId);
         }
         delete proposals[id];
         emit ExecProposal(id);
+    }
+
+    function addNewNode(NodeInfo memory node) private {
+        node.id = ++lastNodeId; // assign a unique id
+        nodes.push(node);
+        nodeIdxById[node.id] = nodes.length - 1; // maintain the id-to-index map
     }
 
     // a monitor can remove a node immediately without voting

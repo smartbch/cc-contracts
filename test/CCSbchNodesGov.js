@@ -48,7 +48,7 @@ describe("CCSbchNodesGov", function () {
     operatorsGovAddr = operatorsGovMock.address;
   });
 
-  it("init: errors", async () => {
+  it("constructor: errors", async () => {
     await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, []))
       .to.be.revertedWith('no-proposers');
     await expect(NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, Array(257).fill(p1.address)))
@@ -59,7 +59,7 @@ describe("CCSbchNodesGov", function () {
       .to.be.revertedWith('duplicated-proposer');
   });
 
-  it("init: ok", async () => {
+  it("constructor: ok", async () => {
     const proposers = [p1.address, p2.address, p3.address];
     const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
     await gov.deployed();
@@ -67,6 +67,27 @@ describe("CCSbchNodesGov", function () {
     expect(await gov.getProposerIdx(p1.address)).to.be.equal(0);
     expect(await gov.getProposerIdx(p2.address)).to.be.equal(1);
     expect(await gov.getProposerIdx(p3.address)).to.be.equal(2);
+  });
+
+  it("init", async () => {
+    const proposers = [p1.address, p2.address, p3.address];
+    const gov = await NodesGov.deploy(monitorsGovAddr, operatorsGovAddr, proposers);
+    await gov.deployed();
+
+    await expect(gov.connect(p3).init([]))
+      .to.be.revertedWith('Ownable: caller is not the owner');
+
+    await gov.init([
+      { id: 0, pubkeyHash: testPbkHash0, rpcUrl: testRpcUrl0, intro: testIntro0 },
+      { id: 0, pubkeyHash: testPbkHash1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+    ]);
+    expect(await getAllNodes(gov)).to.deep.equal([
+      { id: 1, pubkeyHash: testPbkHash0, rpcUrl: testRpcUrl0, intro: testIntro0 },
+      { id: 2, pubkeyHash: testPbkHash1, rpcUrl: testRpcUrl1, intro: testIntro1 },
+    ]);
+
+    await expect(gov.init([]))
+      .to.be.revertedWith('already-initialized');
   });
 
   it("propose: errors", async () => {

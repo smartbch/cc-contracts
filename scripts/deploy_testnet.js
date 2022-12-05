@@ -210,6 +210,21 @@ async function initGovContracts() {
     },
   ];
 
+  const nodes = [
+    {
+      id        : 0,
+      pubkeyHash: '0x1e33afe42f90f897d75b6ad71094fab86da6b888e5a7100a7d01efa121327ea0',
+      rpcUrl    : ethers.utils.formatBytes32String('http://18.141.161.139:8545'),
+      intro     : ethers.utils.formatBytes32String('shagate2-testnet1-node1'),
+    },
+    {
+      id        : 0,
+      pubkeyHash: '0x1e33afe42f90f897d75b6ad71094fab86da6b888e5a7100a7d01efa121327ea0',
+      rpcUrl    : ethers.utils.formatBytes32String('http://18.141.161.139:8545'),
+      intro     : ethers.utils.formatBytes32String('shagate2-testnet1-node2'),
+    },
+  ];
+
   const sep206 = new ethers.Contract(sep206Addr, erc20ABI, signer);
 
   // send monitors and operators some sBCH
@@ -217,13 +232,13 @@ async function initGovContracts() {
   console.log('funding monitors ...');
   for (let mo of mos) {
     console.log(mo.wallet.address);
-    // await signer.sendTransaction({to: mo.addr, value: amt});
+    await signer.sendTransaction({to: mo.wallet.address, value: amt});
     await sep206.connect(mo.wallet).approve(ccMonitorsGov.address, amt);
   }
   console.log('funding operators ...');
   for (let op of ops) {
     console.log(op.wallet.address);
-    // await signer.sendTransaction({to: op.addr, value: amt});
+    await signer.sendTransaction({to: op.wallet.address, value: amt});
     await sep206.connect(op.wallet).approve(ccOperatorsGov.address, amt);
   }
 
@@ -234,6 +249,8 @@ async function initGovContracts() {
   await ccMonitorsGov.init(mos);
   console.log('init OperatorsGov ...');
   await ccOperatorsGov.init(ops);
+  console.log('init SbchNodesGov ...');
+  await ccSbchNodesGov.init(nodes);
 }
 
 // https://learnmeabitcoin.com/technical/wif

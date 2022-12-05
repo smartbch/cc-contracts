@@ -271,10 +271,10 @@ contract CCOperatorsGovForIntegrationTest is CCOperatorsGov {
     }
 
     function updateOperator(address addr,
-                         bytes calldata pubkey,
-                         uint totalStakedAmt,
-                         uint selfStakedAmt,
-                         uint electedTime) public {
+                            bytes calldata pubkey,
+                            uint totalStakedAmt,
+                            uint selfStakedAmt,
+                            uint electedTime) public {
         require(pubkey.length == 33, 'invalid-pubkey');
         uint pubkeyPrefix = uint(uint8(pubkey[0]));
         bytes32 pubkeyX = bytes32(pubkey[1:]);
