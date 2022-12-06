@@ -17,6 +17,6 @@ interface ICCSystemContract {
 
     // anyone
     function handleUTXOs() external;
-    function redeem(uint256 txid, uint256 index, address targetAddress) external;
+    function redeem(uint256 txid, uint256 index, address targetAddress) external payable;
 
 }

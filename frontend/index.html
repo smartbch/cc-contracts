@@ -277,24 +277,74 @@
             </table>
           </div>
           <div class="control">
-            <button class="button is-link" id="btnRefreshNds">Refresh</button>
+            <button class="button is-link" id="btnRefreshNodes">Refresh</button>
           </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">All Proposers</p>
         <div class="box">
-          TODO
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Address</th>
+                </tr>
+              </thead>
+              <tbody id="nodeProposersRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshNodeProposers">Refresh</button>
+            <button class="button is-link" id="btnSyncNodeProposers">Sync</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">All Proposals</p>
         <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Index</th>
+                  <th>Proposer</th>
+                  <th>Created Time</th>
+                  <th>Content</th>
+                  <th>Votes</th>
+                </tr>
+              </thead>
+              <tbody id="nodeProposalsRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshNodeProposals">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Propose New Proposers</p>
+        <div class="box">
+          <div class="field">
+            <label class="label">New Proposer Addresses (One Address per Line)</label>
+            <textarea class="textarea" id="txtNewProposers" placeholder="0x0000000000000000000000000000000000000001&#10;0x0000000000000000000000000000000000000002&#10;0x0000000000000000000000000000000000000003"></textarea>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnNewProposersProposal">Submit</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Propose New RPC Node</p>
+        <div class="box">
           TODO
         </div>
       </div>
       <div class="panel is-link">
-        <p class="panel-heading">Create New Proposal</p>
+        <p class="panel-heading">Propose Obsolete RPC Node</p>
         <div class="box">
           TODO
         </div>
@@ -504,9 +554,9 @@ u('#btnHandleUTXOs').handle('click', async (e) => {
 });
 
 u('#btnRedeem').handle('click', async (e) => {
-  const txid = u('#tfRedeemTxid').first().value;
-  const idx = u('#tfRedeemIdx').first().value;
-  const amt = u('#tfRedeemAmt').first().value;
+  const txid   = u('#tfRedeemTxid').first().value;
+  const idx    = u('#tfRedeemIdx').first().value;
+  const amt    = u('#tfRedeemAmt').first().value;
   const toAddr = u('#tfRedeemTarget').first().value;
   console.log('btnRedeem, txid:', txid, 'idx:', idx, 'amt:', amt, 'to:', toAddr);
   try {    
@@ -686,24 +736,46 @@ u('#btnApplyMo').handle('click', async (e) => {
 u('#btnNominateMo').handle('click', async (e) => {
   const moAddr = u('#tfNominateMoAddr').first().value;
   console.log('nominate mo, moAddr:', moAddr);
+
+  try {
+    const tx = await mosGov.nominateMonitor(moAddr);
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 u('#btnStakeMo').handle('click', async (e) => {
   const moAddr = u('#tfStakeMoAddr').first().value;
   const amt = u('#tfStakeMoAmt').first().value;
   console.log('stake mo, moAddr:', moAddr, 'amt:', amt);
+
+  try {
+    const tx = await mosGov.addStake(moAddr,
+      {value: ethers.utils.parseUnits(amt)});
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 u('#btnUnstakeMo').handle('click', async (e) => {
   const moAddr = u('#tfStakeMoAddr').first().value;
   const amt = u('#tfStakeMoAmt').first().value;
   console.log('unstake mo, moAddr:', moAddr, 'amt:', amt);
+
+  try {
+    const tx = await mosGov.removeStake(ethers.utils.parseUnits(amt));
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 // ---------- Nodes ----------
 
-u('#btnRefreshNds').handle('click', async (e) => {
-  u('#btnRefreshNds').first().disabled = true;
+u('#btnRefreshNodes').handle('click', async (e) => {
+  u('#btnRefreshNodes').first().disabled = true;
   u('#rpcNodesRows').empty();
 
   for (let i = 0; ; i++) {
@@ -723,7 +795,47 @@ u('#btnRefreshNds').handle('click', async (e) => {
     }
   }
 
-  u('#btnRefreshNds').first().disabled = false;
+  u('#btnRefreshNodes').first().disabled = false;
+});
+
+u('#btnRefreshNodeProposers').handle('click', async (e) => {
+  u('#btnRefreshNodeProposers').first().disabled = true;
+  u('#nodeProposersRows').empty();
+
+  for (let i = 0; ; i++) {
+    try {
+      const proposer = await ndsGov.proposers(i);
+      console.log(proposer);
+
+      u('#nodeProposersRows').append(`<tr>
+  <td>${i}</td>
+  <td>${proposer}</td>
+</tr>`);
+    } catch (e) {
+      console.log(e);
+      break;
+    }
+  }
+
+  u('#btnRefreshNodeProposers').first().disabled = false;
+});
+
+u('#btnSyncNodeProposers').handle('click', async (e) => {
+  console.log('sync proposers');
+  try {
+    const tx = await ndsGov.syncProposers();
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnRefreshNodeProposals').handle('click', async (e) => {
+  u('#btnRefreshNodeProposals').first().disabled = true;
+  u('#nodeProposalsRows').empty();
+
+  // todo
+  u('#btnRefreshNodeProposals').first().disabled = true;
 });
 
 // ---------- ccUTXOs ----------
