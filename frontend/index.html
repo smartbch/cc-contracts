@@ -23,6 +23,17 @@
 
     <section id="secSys" class="section">
       <div class="panel is-link">
+        <p class="panel-heading">CC Info</p>
+        <div class="box">
+          <div class="field">
+            <textarea class="textarea" readonly id="txtCcInfo"></textarea>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshCC">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
         <p class="panel-heading">Monitors Only</p>
         <div class="box">
           <div class="field has-addons">
@@ -333,48 +344,77 @@
             <textarea class="textarea" id="txtNewProposers" placeholder="0x0000000000000000000000000000000000000001&#10;0x0000000000000000000000000000000000000002&#10;0x0000000000000000000000000000000000000003"></textarea>
           </div>
           <div class="control">
-            <button class="button is-link" id="btnNewProposersProposal">Submit</button>
+            <button class="button is-link" id="btnProposeNewProposers">Submit</button>
           </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">Propose New RPC Node</p>
         <div class="box">
-          TODO
+          <div class="field">
+            <label class="label">Pubkey Hash (bytes32)</label>
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000000000000000000000000000" id="tfNewNodePbkHash">
+          </div>
+          <div class="field">
+            <label class="label">RPC URL (bytes32)</label>
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="tfNewNodeRpcUrl">
+          </div>
+          <div class="field">
+            <label class="label">Introduction (bytes32)</label>
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="tfNewNodeIntro">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnProposeNewNode">Submit</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">Propose Obsolete RPC Node</p>
         <div class="box">
-          TODO
+          <div class="field">
+            <label class="label">Node ID</label>
+            <input class="input" type="text" placeholder="123" id="tfObsoleteNodeId">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnProposeObsoleteNode">Submit</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">Vote for Proposal</p>
         <div class="box">
-          TODO
+          <div class="field">
+            <label class="label">Proposal ID</label>
+            <div class="control">
+              <input class="input" type="text" id="tfVoteProposalId" placeholder="123">
+            </div>
+          </div>
+          <div class="field">
+            <label class="checkbox">Agreed</label>
+            <input type="checkbox" id="cbVoteAgreed">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnVoteProposal">Vote</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
         <p class="panel-heading">Execute Proposal</p>
         <div class="box">
-          TODO
+          <div class="field">
+            <label class="label">Proposal ID</label>
+            <div class="control">
+              <input class="input" type="text" id="tfExecProposalId" placeholder="123">
+            </div>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnExecProposal">Execute</button>
+          </div>
         </div>
       </div>
     </section>
 
     <section id="secUTXOs" class="section">
-      <div class="panel is-link">
-        <p class="panel-heading">CC Info</p>
-        <div class="box">
-          <div class="field">
-            <textarea class="textarea" readonly id="txtCcInfo"></textarea>
-          </div>
-          <div class="control">
-            <button class="button is-link" id="btnRefreshCC">Refresh</button>
-          </div>
-        </div>
-      </div>
       <div class="panel is-link">
         <p class="panel-heading">Faucet</p>
         <div class="box">
@@ -519,6 +559,13 @@ for (const tabId of tabIds) {
 
 // ---------- System Contract ----------
 
+u('#btnRefreshCC').handle('click', async (e) => {
+  u('#btnFaucetSend').first().disabled = true;
+  const result = await provider.send('sbch_getCcInfo', []);
+  u('#txtCcInfo').first().value = JSON.stringify(result, null, 2);
+  u('#btnFaucetSend').first().disabled = false;
+});
+
 // https://github.com/MetaMask/metamask-extension/issues/7286
 u('#btnStartRescan').handle('click', async (e) => {
   const h = u('#tfRescanHeight').first().value;
@@ -640,11 +687,11 @@ u('#btnApplyOp').handle('click', async (e) => {
 
   try {
     const tx = await opsGov.applyOperator(
-      Number(pbk.substring(2, 4)), // pbkPrefix
-      '0x' + pbk.substring(4),     // pbkX
-      ethers.utils.formatBytes32String(rpcUrl),
-      ethers.utils.formatBytes32String(intro),
-      { value: ethers.utils.parseUnits(amt) },
+        Number(pbk.substring(2, 4)), // pbkPrefix
+        '0x' + pbk.substring(4),     // pbkX
+        ethers.utils.formatBytes32String(rpcUrl),
+        ethers.utils.formatBytes32String(intro),
+        { value: ethers.utils.parseUnits(amt) },
     );
     console.log(tx);
   } catch (err) {
@@ -658,8 +705,8 @@ u('#btnStakeOp').handle('click', async (e) => {
   console.log('stake op, opAddr:', opAddr, 'amt:', amt);
   try {
     const tx = await opsGov.stakeOperator(
-      opAddr,
-      { value: ethers.utils.parseUnits(amt) },
+        opAddr,
+        { value: ethers.utils.parseUnits(amt) },
     );
     console.log(tx);
   } catch (err) {
@@ -673,7 +720,7 @@ u('#btnUnstakeOp').handle('click', async (e) => {
   console.log('unstake op, id:', id, 'amt:', amt);
   try {
     const tx = await opsGov.unstakeOperator(id,
-      ethers.utils.parseUnits(amt));
+        ethers.utils.parseUnits(amt));
     console.log(tx);
   } catch (err) {
     showErr(err);
@@ -722,10 +769,10 @@ u('#btnApplyMo').handle('click', async (e) => {
 
   try {
     const tx = await mosGov.applyMonitor(
-      Number(pbk.substring(2, 4)), // pbkPrefix
-      '0x' + pbk.substring(4),     // pbkX
-      ethers.utils.formatBytes32String(intro),
-      { value: ethers.utils.parseUnits(amt) },
+        Number(pbk.substring(2, 4)), // pbkPrefix
+        '0x' + pbk.substring(4),     // pbkX
+        ethers.utils.formatBytes32String(intro),
+        { value: ethers.utils.parseUnits(amt) },
     );
     console.log(tx);
   } catch (err) {
@@ -752,7 +799,7 @@ u('#btnStakeMo').handle('click', async (e) => {
 
   try {
     const tx = await mosGov.addStake(moAddr,
-      {value: ethers.utils.parseUnits(amt)});
+        {value: ethers.utils.parseUnits(amt)});
     console.log(tx);
   } catch (err) {
     showErr(err);
@@ -834,18 +881,102 @@ u('#btnRefreshNodeProposals').handle('click', async (e) => {
   u('#btnRefreshNodeProposals').first().disabled = true;
   u('#nodeProposalsRows').empty();
 
-  // todo
-  u('#btnRefreshNodeProposals').first().disabled = true;
+  for (let i = 0; ; i++) {
+    try {
+      const proposal = await ndsGov.getProposal(i);
+      console.log(proposal);
+
+      let pType = '?';
+      let detail = '?';
+      if (proposal.newProposers && proposal.newProposers.length > 0) {
+        pType = 'New Proposers';
+        detail = proposal.newProposers.join('\n');
+      } else if (proposal.obsoleteNodeId > 0) {
+        pType = 'Obsolete Node';
+        detail = proposal.obsoleteNodeId.toNumber();
+      } else {
+        const pbkHash = proposal.newNode.pubkeyHash;
+        const rpcUrl = ethers.utils.parseBytes32String(proposal.newNode.rpcUrl);
+        const intro = ethers.utils.parseBytes32String(proposal.newNode.intro);
+
+        pType = 'New Node';
+        detail = `pubkeyHash: ${pbkHash}, rpcUrl: ${rpcUrl}, intro: ${intro}`;
+      }
+
+      u('#nodeProposalsRows').append(`<tr>
+  <td>${i}</td>
+  <td>${proposal.proposer}</td>
+  <td>TODO</td>
+  <td><abbr title='${detail}'>${pType}</abbr></td>
+  <td>TODO</td>
+</tr>`);
+    } catch (err) {
+      console.log(err);
+      break;
+    }
+  }
+
+  u('#btnRefreshNodeProposals').first().disabled = false;
+});
+
+u('#btnProposeNewProposers').handle('click', async (e) => {
+  const addrList = u('#txtNewProposers').first().value;
+  console.log('propose new proposers, addrList:', addrList);
+  try {
+    const newProposers = addrList.split('\n').map(x => x.trim());
+    const tx = await ndsGov.proposeNewProposers(newProposers);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnProposeNewNode').handle('click', async (e) => {
+  const pbkHash = u('#tfNewNodePbkHash').first().value;
+  const rpcUrl  = u('#tfNewNodeRpcUrl').first().value;
+  const intro   = u('#tfNewNodeIntro').first().value;
+  console.log('propose new node, pbkHash:', pbkHash, 'rpcUrl:', rpcUrl, 'intro:', intro);
+  try {
+    const tx = await ndsGov.proposeNewNode(pbkHash, 
+      ethers.utils.formatBytes32String(rpcUrl),
+      ethers.utils.formatBytes32String(intro),
+    );
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnProposeObsoleteNode').handle('click', async (e) => {
+  const nodeId = u('#tfObsoleteNodeId').first().value;
+  console.log('propose obsolete node, id:', nodeId);
+  try {
+    const tx = await ndsGov.proposeObsoleteNode(nodeId);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnVoteProposal').handle('click', async (e) => {
+  const pId = u('#tfVoteProposalId').first().value;
+  const agreed = u('#cbVoteAgreed').first().checked;
+  console.log('vote proposal, id:', pId, 'agreed:', agreed);
+  try {
+    const tx = await ndsGov.voteProposal(pId, agreed);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnExecProposal').handle('click', async (e) => {
+  const pId = u('#tfExecProposalId').first().value;
+  console.log('exec proposal, id:', pId);
+  try {
+    const tx = await ndsGov.execProposal(pId);
+  } catch (err) {
+    showErr(err);
+  }
 });
 
 // ---------- ccUTXOs ----------
-
-u('#btnRefreshCC').handle('click', async (e) => {
-  u('#btnFaucetSend').first().disabled = true;
-  const result = await provider.send('sbch_getCcInfo', []);
-  u('#txtCcInfo').first().value = JSON.stringify(result, null, 2);
-  u('#btnFaucetSend').first().disabled = false;
-});
 
 u('#btnFaucetSend').handle('click', async (e) => {
   const covenantAddr = u('#faucetCccAddr').first().value;
