@@ -212,15 +212,15 @@
         <div class="box">
           <div class="field">
             <label class="label">Compressed Pubkey (33 bytes, starts with 0x02 or 0x03)</label>
-            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="applyMoPbk">
+            <input class="input" type="text" placeholder="0x000000000000000000000000000000000000000000000000000000000000000000" id="tfApplyMoPbk">
           </div> 
           <div class="field">
             <label class="label">Introduction (bytes32)</label>
-            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="applyMoIntro">
+            <input class="input" type="text" placeholder="at most 31 ASCII chars" id="tfApplyMoIntro">
           </div>
           <div class="field">
             <label class="label">Initial Staked BCH</label>
-            <input class="input" type="text" placeholder="100" id="applyMoInitAmt">
+            <input class="input" type="text" placeholder="100" id="tfApplyMoInitAmt">
           </div>
           <div class="control">
             <button class="button is-link" id="btnApplyMo">Apply</button>
@@ -232,7 +232,7 @@
         <div class="box">
           <div class="field">
             <label class="label">Monitor Address</label>
-            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="nominateMoAddr">
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="tfNominateMoAddr">
           </div>
           <div class="control">
             <button class="button is-link" id="btnNominateMo">Nominate</button>
@@ -244,11 +244,11 @@
         <div class="box">
           <div class="field">
             <label class="label">Monitor Address</label>
-            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="stakeMoAddr">
+            <input class="input" type="text" placeholder="0x0000000000000000000000000000000000000000" id="tfStakeMoAddr">
           </div>
           <div class="field">
             <label class="label">BCH Amount</label>
-            <input class="input" type="text" placeholder="100" id="stakeMoAmt">
+            <input class="input" type="text" placeholder="100" id="tfStakeMoAmt">
           </div>
           <div class="control">
             <button class="button is-link" id="btnStakeMo">Deposit</button>
@@ -662,6 +662,42 @@ u('#btnRefreshMos').handle('click', async (e) => {
   }
 
   u('#btnRefreshMos').first().disabled = false;
+});
+
+u('#btnApplyMo').handle('click', async (e) => {
+  const pbk   = u('#tfApplyMoPbk').first().value;
+  const intro = u('#tfApplyMoIntro').first().value;
+  const amt   = u('#tfApplyMoInitAmt').first().value;
+  console.log('apply mo, pbk:', pbk, 'intro:', intro, 'amt:', amt);
+
+  try {
+    const tx = await mosGov.applyMonitor(
+      Number(pbk.substring(2, 4)), // pbkPrefix
+      '0x' + pbk.substring(4),     // pbkX
+      ethers.utils.formatBytes32String(intro),
+      { value: ethers.utils.parseUnits(amt) },
+    );
+    console.log(tx);
+  } catch (err) {
+    showErr(err);
+  }
+});
+
+u('#btnNominateMo').handle('click', async (e) => {
+  const moAddr = u('#tfNominateMoAddr').first().value;
+  console.log('nominate mo, moAddr:', moAddr);
+});
+
+u('#btnStakeMo').handle('click', async (e) => {
+  const moAddr = u('#tfStakeMoAddr').first().value;
+  const amt = u('#tfStakeMoAmt').first().value;
+  console.log('stake mo, moAddr:', moAddr, 'amt:', amt);
+});
+
+u('#btnUnstakeMo').handle('click', async (e) => {
+  const moAddr = u('#tfStakeMoAddr').first().value;
+  const amt = u('#tfStakeMoAmt').first().value;
+  console.log('unstake mo, moAddr:', moAddr, 'amt:', amt);
 });
 
 // ---------- Nodes ----------

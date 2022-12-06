@@ -6,22 +6,23 @@ import { ICCMonitorsGov } from "./CCMonitorsGov.sol";
 import { ICCOperatorsGov } from "./CCOperatorsGov.sol";
 // import "hardhat/console.sol";
 
+struct NodeInfo {
+    uint id; // a unique id for a node starting from 1. It never changes.
+    bytes32 pubkeyHash; // sha256 hash of node's RPC pubkey
+    bytes32 rpcUrl;
+    bytes32 intro;
+}
+
+struct Proposal {
+    address proposer;
+    uint64 createdTime;
+    address[] newProposers; // proposal for new proposer set
+    NodeInfo newNode;       // proposal for new RPC node
+    uint obsoleteNodeId;    // proposal for obsolete RPC node
+    uint votes;             // bitmap indicating which proposers support this proposal
+}
+
 contract CCSbchNodesGov is Ownable {
-
-    struct NodeInfo {
-        uint id; // a unique id for a node starting from 1. It never changes.
-        bytes32 pubkeyHash; // sha256 hash of node's RPC pubkey
-        bytes32 rpcUrl;
-        bytes32 intro;
-    }
-
-    struct Proposal {
-        address proposer;
-        address[] newProposers; // proposal for new proposer set
-        NodeInfo newNode;       // proposal for new enclave node
-        uint obsoleteNodeId;    // proposal for obsolete enclave node
-        uint votes;             // bitmap indicating which proposers support this proposal
-    }
 
     event ProposeNewProposers(uint indexed id, address indexed proposer, address[] newProposers);
     event ProposeNewNode     (uint indexed id, address indexed proposer, bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro);
@@ -29,6 +30,9 @@ contract CCSbchNodesGov is Ownable {
     event VoteProposal       (uint indexed id, address indexed voter, bool agreed);
     event ExecProposal       (uint indexed id);
     event RemoveNodeByMonitor(uint indexed nodeId, address indexed monitor);
+
+    uint constant PROPOSAL_MATURATION_PERIOD = 2 days; // after this period, the proposal is ready to be executed
+    uint constant PROPOSAL_EXPIRATION_PERIOD = 7 days; // after this period, the proposal is expired
 
     address immutable public MONITORS_GOV_ADDR;
     address immutable public OPERATORS_GOV_ADDR;
@@ -94,7 +98,7 @@ contract CCSbchNodesGov is Ownable {
     function proposeNewProposers(address[] calldata newProposers) public onlyProposer {
         require(newProposers.length > 0, 'no-new-proposers');
         require(newProposers.length <= 256, 'too-many-proposers');
-        proposals.push(Proposal(msg.sender, newProposers, NodeInfo(0,'','',''), 0, 0));
+        proposals.push(Proposal(msg.sender, uint64(block.timestamp), newProposers, NodeInfo(0,'','',''), 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeNewProposers(id, msg.sender, newProposers);
@@ -103,7 +107,7 @@ contract CCSbchNodesGov is Ownable {
     // proposal type 2: add a new smartbchd node
     function proposeNewNode(bytes32 pubkeyHash, bytes32 rpcUrl, bytes32 intro) public onlyProposer {
         NodeInfo memory node = NodeInfo(0, pubkeyHash, rpcUrl, intro);
-        proposals.push(Proposal(msg.sender, new address[](0), node, 0, 0));
+        proposals.push(Proposal(msg.sender, uint64(block.timestamp), new address[](0), node, 0, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeNewNode(id, msg.sender, pubkeyHash, rpcUrl, intro);
@@ -114,7 +118,7 @@ contract CCSbchNodesGov is Ownable {
         uint nodeIdx = nodeIdxById[nodeId];
         require(nodeIdx < nodes.length && nodes[nodeIdx].id == nodeId, 'no-such-node');
 
-        proposals.push(Proposal(msg.sender, new address[](0), NodeInfo(0,'','',''), nodeId, 0));
+        proposals.push(Proposal(msg.sender, uint64(block.timestamp), new address[](0), NodeInfo(0,'','',''), nodeId, 0));
         uint id = proposals.length - 1;
         _vote(id, true);
         emit ProposeObsoleteNode(id, msg.sender, nodeId);
@@ -127,6 +131,9 @@ contract CCSbchNodesGov is Ownable {
 
         Proposal storage proposal = proposals[id];
         require(proposal.proposer != address(0), 'executed-proposal');
+
+        uint proposalAge = block.timestamp - proposal.createdTime;
+        require(proposalAge < PROPOSAL_EXPIRATION_PERIOD, 'expired-proposal');
 
         _vote(id, agreed);
         emit VoteProposal(id, msg.sender, agreed);
@@ -167,6 +174,10 @@ contract CCSbchNodesGov is Ownable {
         uint minVoteCount = proposers.length * 2 / 3;
         uint voteCount = getVoteCount(proposal.votes);
         require(voteCount >= minVoteCount, 'not-enough-votes');
+
+        uint proposalAge = block.timestamp - proposal.createdTime;
+        require(proposalAge > PROPOSAL_MATURATION_PERIOD, 'not-mature');
+        require(proposalAge < PROPOSAL_EXPIRATION_PERIOD, 'expired-proposal');
 
         if (proposal.newProposers.length > 0) {
             clearOldProposers();

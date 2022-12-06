@@ -1,3 +1,4 @@
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
 
 const zeroAddr = '0x0000000000000000000000000000000000000000';
@@ -26,6 +27,8 @@ const testIntro    = testIntro0;
 const testNewNode  = { id: 0, pubkeyHash: testPbkHash, rpcUrl: testRpcUrl,  intro: testIntro   };
 const emptyNewNode = { id: 0, pubkeyHash: zeroBytes32, rpcUrl: zeroBytes32, intro: zeroBytes32 };
 
+const maturationPeriod = 2 * 24 * 3600;
+const expirationPeriod = 7 * 24 * 3600;
 
 describe("CCSbchNodesGov", function () {
 
@@ -135,6 +138,7 @@ describe("CCSbchNodesGov", function () {
     // make 1 ObsoleteNode proposal
     await expect(gov.connect(p5).proposeNewNode(...newNodeArgs))
         .to.emit(gov, 'ProposeNewNode').withArgs(4, p5.address, ...newNodeArgs);
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p1).voteProposal(4, true);
     await gov.connect(p2).voteProposal(4, true);
     await gov.connect(p3).voteProposal(4, true);
@@ -173,6 +177,7 @@ describe("CCSbchNodesGov", function () {
 
     // exec proposal#1
     await gov.connect(p1).voteProposal(1, true);
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p5).execProposal(1);
     await expect(gov.connect(p2).voteProposal(1, false)).to.be.revertedWith('executed-proposal');
 
@@ -180,6 +185,12 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p1).voteProposal(0, true);
     await gov.connect(p5).execProposal(0);
     await expect(gov.connect(p2).voteProposal(2, false)).to.be.revertedWith('outdated-proposal');
+
+    // test expirationPeriod
+    await gov.connect(p2).proposeNewNode(...newNodeArgs); // proposal#3
+    await gov.connect(p4).voteProposal(3, true);
+    await time.increase(expirationPeriod + 1);
+    await expect(gov.connect(p4).voteProposal(3, true)).to.be.revertedWith('expired-proposal');
   });
 
   it("vote: ok", async () => {
@@ -244,7 +255,10 @@ describe("CCSbchNodesGov", function () {
     await expect(gov.connect(p1).execProposal(1)).to.be.revertedWith('not-enough-votes');
 
     await gov.connect(p3).voteProposal(1, true);
-    await gov.connect(p4).execProposal(1);
+    await expect(gov.connect(p1).execProposal(1)).to.be.revertedWith('not-mature');
+
+    await time.increase(maturationPeriod + 1);
+    await gov.connect(p4).execProposal(1); // ok
     await expect(gov.connect(p1).execProposal(1)).to.be.revertedWith('executed-proposal');
 
     await gov.connect(p3).voteProposal(0, true);
@@ -252,6 +266,11 @@ describe("CCSbchNodesGov", function () {
     await expect(gov.connect(p1).execProposal(0)).to.be.revertedWith('outdated-proposal');
     await expect(gov.connect(p1).execProposal(1)).to.be.revertedWith('outdated-proposal');
     await expect(gov.connect(p1).execProposal(2)).to.be.revertedWith('outdated-proposal');
+
+    await gov.connect(p3).proposeNewNode(...newNodeArgs); // proposal#3
+    await gov.connect(p4).voteProposal(3, true);
+    await time.increase(expirationPeriod + 1);
+    await expect(gov.connect(p1).execProposal(3)).to.be.revertedWith('expired-proposal');
   });
 
   it("exec: ok", async () => {
@@ -270,6 +289,7 @@ describe("CCSbchNodesGov", function () {
       { id: 1, proposer: p2.address, newProposers: [],           newNode: testNewNode,  obsoleteNodeId: 0, votes:  '10' },
     ]);
 
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p3).voteProposal(1, true);
     await expect(gov.connect(p4).execProposal(1)).to.emit(gov, 'ExecProposal').withArgs(1);
 
@@ -304,6 +324,7 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p1).proposeNewNode(...newNodeArgs);    // proposal#4
     // vote & exec proposal#2  
     await gov.connect(p1).voteProposal(2, true);
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p2).execProposal(2);
     expect(await gov.minProposalId()).to.be.equal(5);
     expect(await gov.getAllProposers()).to.deep.equal(newProposers);
@@ -325,6 +346,7 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p2).proposeNewNode(testPbkHash4, testRpcUrl4, testIntro4); // proposal#4
 
     // execute 4 of them
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p1).voteProposal(1, true);
     await gov.connect(p1).execProposal(1);
     await gov.connect(p1).voteProposal(3, true);
@@ -347,6 +369,7 @@ describe("CCSbchNodesGov", function () {
     // obsolete node#2
     await gov.connect(p2).proposeObsoleteNode(2); // proposal#5
     await gov.connect(p1).voteProposal(5, true);
+    await time.increase(maturationPeriod + 1);
     await expect(gov.connect(p1).execProposal(5)).to.emit(gov, 'ExecProposal').withArgs(5);
     expect(await getAllNodes(gov)).to.deep.equal([
       { id: 1, pubkeyHash: testPbkHash1, rpcUrl: testRpcUrl1, intro: testIntro1 },
@@ -361,6 +384,7 @@ describe("CCSbchNodesGov", function () {
     // obsolete node#4
     await gov.connect(p2).proposeObsoleteNode(4); // proposal#6
     await gov.connect(p1).voteProposal(6, true);
+    await time.increase(maturationPeriod + 1);
     await expect(gov.connect(p1).execProposal(6)).to.emit(gov, 'ExecProposal').withArgs(6);
     expect(await getAllNodes(gov)).to.deep.equal([
       { id: 1, pubkeyHash: testPbkHash1, rpcUrl: testRpcUrl1, intro: testIntro1 },
@@ -374,6 +398,7 @@ describe("CCSbchNodesGov", function () {
     // obsolete node#3
     await gov.connect(p2).proposeObsoleteNode(3); // proposal#7
     await gov.connect(p1).voteProposal(7, true);
+    await time.increase(maturationPeriod + 1);
     await expect(gov.connect(p1).execProposal(7)).to.emit(gov, 'ExecProposal').withArgs(7);
     expect(await getAllNodes(gov)).to.deep.equal([
       { id: 1, pubkeyHash: testPbkHash1, rpcUrl: testRpcUrl1, intro: testIntro1 },
@@ -386,6 +411,7 @@ describe("CCSbchNodesGov", function () {
     // obsolete node#1
     await gov.connect(p2).proposeObsoleteNode(1); // proposal#8
     await gov.connect(p1).voteProposal(8, true);
+    await time.increase(maturationPeriod + 1);
     await expect(gov.connect(p1).execProposal(8)).to.emit(gov, 'ExecProposal').withArgs(8);
     expect(await getAllNodes(gov)).to.deep.equal([
     ]);
@@ -400,6 +426,7 @@ describe("CCSbchNodesGov", function () {
     await gov.connect(p2).proposeNewNode(testPbkHash0, testRpcUrl0, testIntro0); // proposal#0
     await gov.connect(p2).proposeNewNode(testPbkHash1, testRpcUrl1, testIntro1); // proposal#1
     await gov.connect(p2).proposeNewNode(testPbkHash2, testRpcUrl2, testIntro2); // proposal#2
+    await time.increase(maturationPeriod + 1);
     await gov.connect(p1).voteProposal(0, true);
     await gov.connect(p1).execProposal(0);
     await gov.connect(p1).voteProposal(1, true);
