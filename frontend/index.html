@@ -321,9 +321,9 @@
               <thead>
                 <tr>
                   <th>Index</th>
-                  <th>Proposer</th>
                   <th>Created Time</th>
-                  <th>Content</th>
+                  <th>Proposer</th>
+                  <th>Proposal</th>
                   <th>Votes</th>
                 </tr>
               </thead>
@@ -467,6 +467,32 @@
           TODO
         </div>
       </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Tx History</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Height</th>
+                  <th>TXID</th>
+                  <th>Index</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="txHistoryRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="field">
+            <label class="label">ccCovenant Address (BCH)</label>
+            <input class="input" type="text" value="bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk" id="historyCccAddr">
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshTxHistory">Refresh</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <script type="module">
@@ -503,14 +529,28 @@ const ccSys  = new ethers.Contract(ccSysAddr,  ccSysJson.abi,  signer);
 // console.log(ccSys);
 
 
-const ccFaucetServer = 'http://3.1.26.210:8887/spend';
+const utxoServer = 'http://3.1.26.210:8887';
 // const ccCovenantAddr = 'bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk';
 function askFaucet(covenantAddr, receiverAddr) {
-  const url = `${ccFaucetServer}?covenantAddr=${covenantAddr}&receiverAddr=${receiverAddr}`;
+  const url = `${utxoServer}/spend?covenantAddr=${covenantAddr}&receiverAddr=${receiverAddr}`;
   console.log(url);
   return fetch(url)
     .then(resp => resp.json())
     .catch(err => err);
+}
+function getUtxoHistory(covenantAddr) {
+  const url = `${utxoServer}/history?covenantAddr=${covenantAddr}`;
+  console.log(url);
+  return fetch(url)
+    .then(resp => resp.json())
+    .catch(err => []);
+}
+function getTx(txid) {
+  const url = `${utxoServer}/tx?id=${txid}`;
+  console.log(url);
+  return fetch(url)
+    .then(resp => resp.json())
+    .catch(err => {});
 }
 
 
@@ -664,8 +704,8 @@ u('#btnRefreshOpStakings').handle('click', async (e) => {
 
       u('#opsStakingsRows').append(`<tr>
   <td>${i}</td>
-  <td>${sInfo.staker}</td>
-  <td>${sInfo.operator}</td>
+  <td><code>${sInfo.staker}</code></td>
+  <td><code>${sInfo.operator}</code></td>
   <td><abbr title='${sTime}'>${sInfo.stakedTime}</abbr></td>
   <td>${ethers.utils.formatUnits(sInfo.stakedAmt)}</td>
 </tr>`);
@@ -832,7 +872,7 @@ u('#btnRefreshNodes').handle('click', async (e) => {
 
       u('#rpcNodesRows').append(`<tr>
   <td>${nodeInfo.id}</td>
-  <td>${nodeInfo.pubkeyHash}</td>
+  <td><code>${nodeInfo.pubkeyHash}</code></td>
   <td>${ethers.utils.parseBytes32String(nodeInfo.rpcUrl)}</td>
   <td>${ethers.utils.parseBytes32String(nodeInfo.intro)}</td>
 </tr>`);
@@ -856,7 +896,7 @@ u('#btnRefreshNodeProposers').handle('click', async (e) => {
 
       u('#nodeProposersRows').append(`<tr>
   <td>${i}</td>
-  <td>${proposer}</td>
+  <td><code>${proposer}</code></td>
 </tr>`);
     } catch (e) {
       console.log(e);
@@ -881,6 +921,10 @@ u('#btnRefreshNodeProposals').handle('click', async (e) => {
   u('#btnRefreshNodeProposals').first().disabled = true;
   u('#nodeProposalsRows').empty();
 
+  const proposers = await ndsGov.getAllProposers();
+  const nProposers = proposers.length;
+  console.log('nProposers:', nProposers);
+
   for (let i = 0; ; i++) {
     try {
       const proposal = await ndsGov.getProposal(i);
@@ -903,12 +947,22 @@ u('#btnRefreshNodeProposals').handle('click', async (e) => {
         detail = `pubkeyHash: ${pbkHash}, rpcUrl: ${rpcUrl}, intro: ${intro}`;
       }
 
+      let votes = BigInt(proposal.votes.toString()).toString(2);
+      if (votes.length < nProposers) {
+        votes = "0".repeat(nProposers - votes.length) + votes;
+      }
+      votes = votes.split("").reverse().join("")
+          .replaceAll('1', '✅')
+          .replaceAll('0', '❓');
+      // votes = '[' + votes + ']';
+      console.log(votes);
+
       u('#nodeProposalsRows').append(`<tr>
   <td>${i}</td>
-  <td>${proposal.proposer}</td>
   <td>TODO</td>
+  <td><code>${proposal.proposer}</code></td>
   <td><abbr title='${detail}'>${pType}</abbr></td>
-  <td>TODO</td>
+  <td>${votes}</td>
 </tr>`);
     } catch (err) {
       console.log(err);
@@ -998,14 +1052,63 @@ u('#btnRefreshRedeemableUtxos').handle('click', async (e) => {
 
   (result.infos || []).forEach((utxo, idx) => {
       u('#redeemableUtxosRows').append(`<tr>
-  <td>${utxo.covenantAddr}</td>
-  <td>${utxo.txid}</td>
+  <td><code>${utxo.covenantAddr}</code></td>
+  <td><code>${utxo.txid}</code></td>
   <td>${utxo.index}</td>
   <td>${utxo.amount / 10**8}</td>
 </tr>`);
   });
 
   u('#btnRefreshRedeemableUtxos').first().disabled = false;
+});
+
+u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
+  // TODO
+});
+
+u('#btnRefreshTxHistory').handle('click', async (e) => {
+  u('#btnRefreshTxHistory').first().disabled = true;
+  u('#txHistoryRows').empty();
+
+  const covenantAddr = u('#historyCccAddr').first().value;
+  const allUtxos = await getUtxoHistory(covenantAddr);
+  console.log(allUtxos);
+
+  allUtxos.reverse().forEach(async (utxo) => {
+    let txInfo = {};
+    let ccUtxoInfo = {};
+    try {
+      // txInfo = await getTx(utxo.tx_hash);
+      // console.log('txInfo:', txInfo);
+
+      const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+utxo.tx_hash, 0]);
+      console.log('ccUtxo:', ccUtxo);
+
+      const ccUtxoInfos = ccUtxo.infos || [];
+      if (ccUtxoInfos.length > 0 && ccUtxoInfos[0].covenantAddr != '0x0000000000000000000000000000000000000000') {
+        ccUtxoInfo = ccUtxoInfos[0];
+      }
+    } catch (err) {
+      console.log(err);
+    }
+
+    console.log(ccUtxoInfo);
+    let status = '?';
+    if (ccUtxoInfo.isRedeemed) {
+      status = 'redeemed';
+    } else if (ccUtxoInfo.covenantAddr && ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
+      status = 'received';
+    }
+
+    u('#txHistoryRows').append(`<tr>
+  <td>${utxo.height}</td>
+  <td><a href='https://www.blockchain.com/bch-testnet/tx/${utxo.tx_hash}'>${utxo.tx_hash}</abbr></td>
+  <td>0</td>
+  <td>${status}</td>
+</tr>`);
+  });
+
+  u('#btnRefreshTxHistory').first().disabled = false;
 });
 
 // activate tab
