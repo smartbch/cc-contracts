@@ -477,6 +477,7 @@
                   <th>Height</th>
                   <th>TXID</th>
                   <th>Index</th>
+                  <th>Type</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -538,7 +539,7 @@ function askFaucet(covenantAddr, receiverAddr) {
     .then(resp => resp.json())
     .catch(err => err);
 }
-function getUtxoHistory(covenantAddr) {
+function getHistory(covenantAddr) {
   const url = `${utxoServer}/history?covenantAddr=${covenantAddr}`;
   console.log(url);
   return fetch(url)
@@ -1071,51 +1072,98 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
   u('#txHistoryRows').empty();
 
   const covenantAddr = u('#historyCccAddr').first().value;
-  const allUtxos = await getUtxoHistory(covenantAddr);
-  console.log(allUtxos);
+  let txList = await getHistory(covenantAddr);
+  txList = txList.reverse();
+  console.log(txList);
 
-  allUtxos.reverse().forEach(async (utxo) => {
-    let txInfo = {};
-    let ccUtxoInfo = {};
+  for (let tx of txList) {
+    u('#txHistoryRows').append(`<tr>
+  <td>${tx.height}</td>
+  <td><a href='https://www.blockchain.com/bch-testnet/tx/${tx.tx_hash}'>${tx.tx_hash}</abbr></td>
+  <td id='tx_idx_${tx.tx_hash}'>0</td>
+  <td id='tx_type_${tx.tx_hash}'>?</td>
+  <td id='tx_status_${tx.tx_hash}'>?</td>
+</tr>`);
+  };
+
+  u('#btnRefreshTxHistory').first().disabled = false;
+
+  for (let tx of txList) {
     try {
-      // txInfo = await getTx(utxo.tx_hash);
-      // console.log('txInfo:', txInfo);
+      getTx(tx.tx_hash).then(async (txInfo) => {
+        console.log('txInfo:', txInfo);
 
-      const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+utxo.tx_hash, 0]);
-      console.log('ccUtxo:', ccUtxo);
+        const outIdx = isDeposit(txInfo, covenantAddr);
+        if (outIdx >= 0) {
+          u(`#tx_type_${tx.tx_hash}`).text('deposit');
+          if (outIdx > 0) {
+            u(`#tx_idx_${tx.tx_hash}`).text(outIdx);
+          }
+        } else if (isWithdraw(txInfo)) {
+          u(`#tx_type_${tx.tx_hash}`).text('withdraw');
+        }
 
-      const ccUtxoInfos = ccUtxo.infos || [];
-      if (ccUtxoInfos.length > 0 && ccUtxoInfos[0].covenantAddr != '0x0000000000000000000000000000000000000000') {
-        ccUtxoInfo = ccUtxoInfos[0];
-      }
+        if (outIdx < 0) {
+          return; // skip withdraw
+        }
+
+        const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+tx.tx_hash, 0]);
+        // console.log('ccUtxo:', ccUtxo);
+
+        let status = 'unrecognized';
+        if (ccUtxo.infos && ccUtxo.infos.length > 0) {
+          const ccUtxoInfo = ccUtxo.infos[0];
+          console.log('ccUtxoInfo:', ccUtxoInfo);
+          if (ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
+            status = 'recognized';
+          }
+        }
+
+        u(`#tx_status_${tx.tx_hash}`).text(status);
+      })
     } catch (err) {
       console.log(err);
     }
+  }
 
-    console.log(ccUtxoInfo);
-    let status = '?';
-    if (ccUtxoInfo.isRedeemed) {
-      status = 'redeemed';
-    } else if (ccUtxoInfo.covenantAddr && ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
-      status = 'received';
-    }
-
-    u('#txHistoryRows').append(`<tr>
-  <td>${utxo.height}</td>
-  <td><a href='https://www.blockchain.com/bch-testnet/tx/${utxo.tx_hash}'>${utxo.tx_hash}</abbr></td>
-  <td>0</td>
-  <td>${status}</td>
-</tr>`);
-  });
-
-  u('#btnRefreshTxHistory').first().disabled = false;
 });
 
-// activate tab
+// ---------- activate tab ----------
 console.log(window.location);
 const tabId = window.location.hash;
 if (tabId) {
   u(tabId).trigger('click');
+}
+
+
+// ========== cc-UTXO ==========
+
+function isDeposit(txInfo, covenantAddr) {
+  if (!txInfo.vout) {
+    return -1;
+  }
+
+  let idx = 0;
+  for (let out of txInfo.vout) {
+    if (out.scriptPubKey && out.scriptPubKey.addresses) {
+      for (let addr of out.scriptPubKey.addresses) {
+        if (addr == covenantAddr) {
+          return idx;
+        }
+      }
+    }
+    idx++;
+  }
+  return -1;
+}
+
+function isWithdraw(txInfo) {
+  return txInfo.vout
+    && txInfo.vout.length == 1
+    && txInfo.vout[0].scriptPubKey
+    && txInfo.vout[0].scriptPubKey.addresses
+    && txInfo.vout[0].scriptPubKey.addresses.length == 1
+    && txInfo.vout[0].scriptPubKey.asm.indexOf('OP_DUP OP_HASH160') == 0;
 }
 
     </script>
