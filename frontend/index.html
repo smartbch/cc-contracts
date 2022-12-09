@@ -82,6 +82,29 @@
           </div>
         </div>
       </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Logs</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Height</th>
+                  <th>Type</th>
+                  <th>ccCovenant</th>
+                  <th>TXID:Index</th>
+                  <th>Extra Info</th>
+                </tr>
+              </thead>
+              <tbody id="ccLogsRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshCcLogs">Refresh</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="secOps" class="section is-hidden">
@@ -464,7 +487,23 @@
       <div class="panel is-link">
         <p class="panel-heading">Redeeming UTXOs</p>
         <div class="box">
-          TODO
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>CovenantAddr</th>
+                  <th>TXID</th>
+                  <th>Index</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="redeemingUtxosRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshRedeemingUtxos">Refresh</button>
+          </div>
         </div>
       </div>
       <div class="panel is-link">
@@ -514,7 +553,7 @@ const signer = provider3.getSigner();
 const myAddr = await signer.getAddress();
 console.log('myAddr:', myAddr);
 
-// ========== Gov Contracts ==========
+// ========== Gov & Sys Contracts ==========
 
 const opsGovAddr = '0xA99eE02594E22bd94b82B98c993b9D9fC678bb23';
 const mosGovAddr = '0x5fb462677e30e6854AE8d129b76631f0dCeeA378';
@@ -602,6 +641,7 @@ for (const tabId of tabIds) {
 
 u('#btnRefreshCC').handle('click', async (e) => {
   u('#btnFaucetSend').first().disabled = true;
+  u('#txtCcInfo').first().value = '';
   const result = await provider.send('sbch_getCcInfo', []);
   u('#txtCcInfo').first().value = JSON.stringify(result, null, 2);
   u('#btnFaucetSend').first().disabled = false;
@@ -659,6 +699,48 @@ u('#btnRedeem').handle('click', async (e) => {
   } catch (err) {
     showErr(err);
   }
+});
+
+u('#btnRefreshCcLogs').handle('click', async (e) => {
+  u('#ccLogsRows').empty();
+
+  const h = await provider.getBlockNumber();
+  console.log('h:', h);
+
+  const totalBlocks = 200000;
+  const batchBlocks = 10000;
+
+  for (let i = 0; i < 20; i++) {
+    let fromBlock = h - batchBlocks * (i + 1) + 1;
+    let toBlock = h - batchBlocks * i;
+    if (toBlock < 0) {
+      break;
+    }
+    if (fromBlock < 0) {
+      fromBlock = 0;
+    }
+
+    console.log('fromBlock:', fromBlock, 'toBlock:', toBlock);
+    const logs = await provider.send('eth_getLogs', [{
+      fromBlock: '0x' + fromBlock.toString(16),
+      toBlock  : '0x' + toBlock.toString(16),
+      address  : [ccSysAddr],
+    }]);
+    // console.log(logs);
+    for (let log of logs.reverse()) {
+      console.log(log);
+      const parsedLog = parseCcLog(log);
+
+      u('#ccLogsRows').append(`<tr>
+  <td>${Number(log.blockNumber)}</td>
+  <td>${parsedLog.logType}</td>
+  <td><code>${parsedLog.ccCovenant}</code></td>
+  <td><code>${parsedLog.txid}:${parsedLog.idx}</code></td>
+  <td>${parsedLog.extraInfo}</td>
+</tr>`);
+    }
+  }
+
 });
 
 // ---------- Operators ----------
@@ -1064,7 +1146,22 @@ u('#btnRefreshRedeemableUtxos').handle('click', async (e) => {
 });
 
 u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
-  // TODO
+  u('#btnRefreshRedeemingUtxos').first().disabled = true;
+  u('#redeemingUtxosRows').empty();
+
+  const result = await provider.send('sbch_getRedeemingUtxosForOperators', []);
+  console.log(result);
+
+  (result.infos || []).forEach((utxo, idx) => {
+      u('#redeemingUtxosRows').append(`<tr>
+  <td><code>${utxo.covenantAddr}</code></td>
+  <td><code>${utxo.txid}</code></td>
+  <td>${utxo.index}</td>
+  <td>${utxo.amount / 10**8}</td>
+</tr>`);
+  });
+
+  u('#btnRefreshRedeemingUtxos').first().disabled = false;
 });
 
 u('#btnRefreshTxHistory').handle('click', async (e) => {
@@ -1073,7 +1170,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
 
   const covenantAddr = u('#historyCccAddr').first().value;
   let txList = await getHistory(covenantAddr);
-  txList = txList.reverse();
+  txList = txList.reverse().filter(tx => tx.height > 1529538);
   console.log(txList);
 
   for (let tx of txList) {
@@ -1110,7 +1207,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
         const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+tx.tx_hash, 0]);
         // console.log('ccUtxo:', ccUtxo);
 
-        let status = 'unrecognized';
+        let status = '?';
         if (ccUtxo.infos && ccUtxo.infos.length > 0) {
           const ccUtxoInfo = ccUtxo.infos[0];
           console.log('ccUtxoInfo:', ccUtxoInfo);
@@ -1135,6 +1232,52 @@ if (tabId) {
   u(tabId).trigger('click');
 }
 
+// ========== ccSys logs ==========
+
+const EventIdNewRedeemable   = '0x15bab6fd59710de61ff75fa11875274a47fc2179068400add57ba8fb8bb4c5f1';
+const EventIdNewLostAndFound = '0x5097ba403df8e5415e49ecafe3a1610dce19fdae7df003d29d07d4f0833542ee';
+const EventIdRedeem          = '0x8a9c454bba797fa0dfd6fb9d59687e2e0d5e4828de1f91ffdcf4719e1163aec0';
+const EventIdChangeAddr      = '0x5029ef2b1891e99a0ef410ffbd2219535c135111c548ab27c4db353800fc6df6';
+const EventIdConvert         = '0x5c0caa320907ad2fb85323d152c52b05f7b683c6105991ceaed961d03410a499';
+const EventIdDeleted         = '0x88efadfda2430f2d2ac267ce7158a19f80c4faef7beef319a98ba853e3ebed6f';
+
+function parseCcLog(log) {
+  switch (log.topics[0]) {
+  case EventIdNewRedeemable:
+    return {
+      logType: 'NewRedeemable',
+      txid: log.topics[1],
+      idx: Number(log.topics[2]),
+      ccCovenant: topicToAddr(log.topics[3]),
+      extraInfo: '',
+    };
+  case EventIdRedeem:
+    return {
+      logType: 'Redeem',
+      txid: log.topics[1],
+      idx: Number(log.topics[2]),
+      ccCovenant: topicToAddr(log.topics[3]),
+      extraInfo: `sourceType: ${Number(log.data)}`,
+    };
+  case EventIdDeleted:
+    return {
+      logType: 'Deleted',
+      txid: log.topics[1],
+      idx: Number(log.topics[2]),
+      ccCovenant: topicToAddr(log.topics[3]),
+      extraInfo: `sourceType: ${Number(log.data)}`,
+    }
+  default:
+    // TODO
+    return {
+      logType: log.topics[0],
+    };
+  }
+}
+
+function topicToAddr(topic) {
+  return topic.replace('0x000000000000000000000000', '0x');
+}
 
 // ========== cc-UTXO ==========
 
