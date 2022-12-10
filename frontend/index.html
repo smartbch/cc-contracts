@@ -1212,7 +1212,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
           const ccUtxoInfo = ccUtxo.infos[0];
           console.log('ccUtxoInfo:', ccUtxoInfo);
           if (ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
-            status = 'recognized';
+            status = 'handled';
           }
         }
 
@@ -1246,6 +1246,14 @@ function parseCcLog(log) {
   case EventIdNewRedeemable:
     return {
       logType: 'NewRedeemable',
+      txid: log.topics[1],
+      idx: Number(log.topics[2]),
+      ccCovenant: topicToAddr(log.topics[3]),
+      extraInfo: '',
+    };
+  case EventIdNewLostAndFound:
+    return {
+      logType: 'NewLostAndFound',
       txid: log.topics[1],
       idx: Number(log.topics[2]),
       ccCovenant: topicToAddr(log.topics[3]),
