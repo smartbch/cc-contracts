@@ -499,7 +499,7 @@ async function getAllProposals(gov) {
 }
 async function getProposal(gov, id) {
   // let proposal = await gov.proposals(id);
-  let [proposer, newProposers, newNode, obsoleteNodeId, votes] = await gov.getProposal(id);
+  let [proposer, createdTime, newProposers, newNode, obsoleteNodeId, votes] = await gov.getProposal(id);
   // console.log(proposal);
   newNode = {
     id: newNode.id.toNumber(),

@@ -82,6 +82,7 @@ contract CCSbchNodesGov is Ownable {
     }
 
     function getProposal(uint id) public view returns (address proposer,
+                                                       uint64 createdTime,
                                                        address[] memory newProposers,
                                                        NodeInfo memory newNode,
                                                        uint obsoleteNodeId,
