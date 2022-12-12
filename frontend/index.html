@@ -517,6 +517,7 @@
                   <th>TXID</th>
                   <th>Index</th>
                   <th>Type</th>
+                  <th>Return Data</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -1179,11 +1180,16 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
   <td><a href='https://www.blockchain.com/bch-testnet/tx/${tx.tx_hash}'>${tx.tx_hash}</abbr></td>
   <td id='tx_idx_${tx.tx_hash}'>0</td>
   <td id='tx_type_${tx.tx_hash}'>?</td>
+  <td id='tx_ret_${tx.tx_hash}'></td>
   <td id='tx_status_${tx.tx_hash}'>?</td>
 </tr>`);
   };
 
   u('#btnRefreshTxHistory').first().disabled = false;
+
+  const ccInfo = await provider.send('sbch_getCcInfo', []);
+  console.log('ccInfo:', ccInfo);
+  const ccRescanedH = ccInfo.rescannedHeight || 0;
 
   for (let tx of txList) {
     try {
@@ -1204,15 +1210,25 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
           return; // skip withdraw
         }
 
-        const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+tx.tx_hash, 0]);
-        // console.log('ccUtxo:', ccUtxo);
+        const retData = getRetData(txInfo);
+        // console.log('retData:', retData);
+        retData.forEach((data, idx) => {
+          u(`#tx_ret_${tx.tx_hash}`).append(`<abbr title=${data}>data${idx},</abbr>`);
+        });
 
         let status = '?';
-        if (ccUtxo.infos && ccUtxo.infos.length > 0) {
-          const ccUtxoInfo = ccUtxo.infos[0];
-          console.log('ccUtxoInfo:', ccUtxoInfo);
-          if (ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
-            status = 'handled';
+        if (tx.height > ccRescanedH) {
+          status = 'unhandled';
+        } else {        
+          const ccUtxo = await provider.send('sbch_getCcUtxo', ['0x'+tx.tx_hash, 0]);
+          // console.log('ccUtxo:', ccUtxo);
+
+          if (ccUtxo.infos && ccUtxo.infos.length > 0) {
+            const ccUtxoInfo = ccUtxo.infos[0];
+            console.log('ccUtxoInfo:', ccUtxoInfo);
+            if (ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
+              status = 'handled';
+            }
           }
         }
 
@@ -1288,6 +1304,23 @@ function topicToAddr(topic) {
 }
 
 // ========== cc-UTXO ==========
+
+function getRetData(txInfo) {
+  return (txInfo.vout || [])
+    .map(x => x?.scriptPubKey?.asm)
+    .filter(asm => asm.indexOf('OP_RETURN ') == 0)
+    .map(asm => asm.replace('OP_RETURN ', ''))
+    .map(retData => hex2a(retData));
+}
+
+// https://stackoverflow.com/questions/3745666/how-to-convert-from-hex-to-ascii-in-javascript
+function hex2a(hexx) {
+    var hex = hexx.toString();//force conversion
+    var str = '';
+    for (var i = 0; i < hex.length; i += 2)
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    return str;
+}
 
 function isDeposit(txInfo, covenantAddr) {
   if (!txInfo.vout) {
