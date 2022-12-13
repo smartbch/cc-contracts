@@ -470,8 +470,7 @@
               <thead>
                 <tr>
                   <th>CovenantAddr</th>
-                  <th>TXID</th>
-                  <th>Index</th>
+                  <th>TXID:Index</th>
                   <th>Amount</th>
                 </tr>
               </thead>
@@ -492,8 +491,7 @@
               <thead>
                 <tr>
                   <th>CovenantAddr</th>
-                  <th>TXID</th>
-                  <th>Index</th>
+                  <th>TXID:Index</th>
                   <th>Amount</th>
                 </tr>
               </thead>
@@ -503,6 +501,27 @@
           </div>
           <div class="control">
             <button class="button is-link" id="btnRefreshRedeemingUtxos">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">ToBeConverted UTXOs</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>CovenantAddr</th>
+                  <th>TXID:Index</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="toBeConvertedUtxosRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshtoBeConvertedUtxos">Refresh</button>
           </div>
         </div>
       </div>
@@ -517,6 +536,7 @@
                   <th>TXID</th>
                   <th>Index</th>
                   <th>Type</th>
+                  <th>Value</th>
                   <th>Return Data</th>
                   <th>Status</th>
                 </tr>
@@ -1135,10 +1155,10 @@ u('#btnRefreshRedeemableUtxos').handle('click', async (e) => {
   console.log(result);
 
   (result.infos || []).forEach((utxo, idx) => {
-      u('#redeemableUtxosRows').append(`<tr>
+      u('#redeemableUtxosRows').append(
+`<tr>
   <td><code>${utxo.covenantAddr}</code></td>
-  <td><code>${utxo.txid}</code></td>
-  <td>${utxo.index}</td>
+  <td><code>${utxo.txid}:${utxo.index}</code></td>
   <td>${utxo.amount / 10**8}</td>
 </tr>`);
   });
@@ -1154,15 +1174,34 @@ u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
   console.log(result);
 
   (result.infos || []).forEach((utxo, idx) => {
-      u('#redeemingUtxosRows').append(`<tr>
+      u('#redeemingUtxosRows').append(
+`<tr>
   <td><code>${utxo.covenantAddr}</code></td>
-  <td><code>${utxo.txid}</code></td>
-  <td>${utxo.index}</td>
+  <td><code>${utxo.txid}:${utxo.index}</code></td>
   <td>${utxo.amount / 10**8}</td>
 </tr>`);
   });
 
   u('#btnRefreshRedeemingUtxos').first().disabled = false;
+});
+
+u('#btnRefreshtoBeConvertedUtxos').handle('click', async (e) => {
+  u('#btnRefreshtoBeConvertedUtxos').first().disabled = true;
+  u('#toBeConvertedUtxosRows').empty();
+
+  const result = await provider.send('sbch_getToBeConvertedUtxosForOperators', []);
+  console.log(result);
+
+  (result.infos || []).forEach((utxo, idx) => {
+      u('#toBeConvertedUtxosRows').append(
+`<tr>
+  <td><code>${utxo.covenantAddr}</code></td>
+  <td><code>${utxo.txid}:${utxo.index}</code></td>
+  <td>${utxo.amount / 10**8}</td>
+</tr>`);
+  });
+
+  u('#btnRefreshtoBeConvertedUtxos').first().disabled = false;
 });
 
 u('#btnRefreshTxHistory').handle('click', async (e) => {
@@ -1180,6 +1219,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
   <td><a href='https://www.blockchain.com/bch-testnet/tx/${tx.tx_hash}'>${tx.tx_hash}</abbr></td>
   <td id='tx_idx_${tx.tx_hash}'>0</td>
   <td id='tx_type_${tx.tx_hash}'>?</td>
+  <td id='tx_val_${tx.tx_hash}'></td>
   <td id='tx_ret_${tx.tx_hash}'></td>
   <td id='tx_status_${tx.tx_hash}'>?</td>
 </tr>`);
@@ -1196,14 +1236,22 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
       getTx(tx.tx_hash).then(async (txInfo) => {
         console.log('txInfo:', txInfo);
 
-        const outIdx = isDeposit(txInfo, covenantAddr);
+        const [outIdx, outVal] = isDeposit(txInfo, covenantAddr);
+        // console.log(outIdx, outVal);
         if (outIdx >= 0) {
           u(`#tx_type_${tx.tx_hash}`).text('deposit');
           if (outIdx > 0) {
             u(`#tx_idx_${tx.tx_hash}`).text(outIdx);
           }
-        } else if (isWithdraw(txInfo)) {
-          u(`#tx_type_${tx.tx_hash}`).text('withdraw');
+          if (outVal > 0) {
+            u(`#tx_val_${tx.tx_hash}`).text(outVal);
+          }
+        } else {
+          const outVal = isWithdraw(txInfo);
+          if (outVal > 0) {
+            u(`#tx_type_${tx.tx_hash}`).text('withdraw');
+            u(`#tx_val_${tx.tx_hash}`).text(outVal);
+          }
         }
 
         if (outIdx < 0) {
@@ -1227,6 +1275,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
             const ccUtxoInfo = ccUtxo.infos[0];
             console.log('ccUtxoInfo:', ccUtxoInfo);
             if (ccUtxoInfo.covenantAddr != '0x0000000000000000000000000000000000000000') {
+              // txid, idx, amt, toAddr
               status = 'handled';
             }
           }
@@ -1324,7 +1373,7 @@ function hex2a(hexx) {
 
 function isDeposit(txInfo, covenantAddr) {
   if (!txInfo.vout) {
-    return -1;
+    return [-1, -1];
   }
 
   let idx = 0;
@@ -1332,22 +1381,25 @@ function isDeposit(txInfo, covenantAddr) {
     if (out.scriptPubKey && out.scriptPubKey.addresses) {
       for (let addr of out.scriptPubKey.addresses) {
         if (addr == covenantAddr) {
-          return idx;
+          return [idx, out.value];
         }
       }
     }
     idx++;
   }
-  return -1;
+  return [-1, -1];
 }
 
 function isWithdraw(txInfo) {
-  return txInfo.vout
-    && txInfo.vout.length == 1
-    && txInfo.vout[0].scriptPubKey
-    && txInfo.vout[0].scriptPubKey.addresses
-    && txInfo.vout[0].scriptPubKey.addresses.length == 1
-    && txInfo.vout[0].scriptPubKey.asm.indexOf('OP_DUP OP_HASH160') == 0;
+  if (txInfo.vout
+      && txInfo.vout.length == 1
+      && txInfo.vout[0].scriptPubKey
+      && txInfo.vout[0].scriptPubKey.addresses
+      && txInfo.vout[0].scriptPubKey.addresses.length == 1
+      && txInfo.vout[0].scriptPubKey.asm.indexOf('OP_DUP OP_HASH160') == 0) {
+
+    return txInfo.vout[0].value;
+  }
 }
 
     </script>
