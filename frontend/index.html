@@ -229,7 +229,7 @@
                   <th>Intro</th>
                   <th>Staked BCH</th>
                   <th>ElectedTime</th>
-                  <th>Nominated By</th>
+                  <th>Nominated By Ops</th>
                 </tr>
               </thead>
               <tbody id="mosInfoRows">
@@ -878,13 +878,21 @@ u('#btnRefreshMos').handle('click', async (e) => {
   u('#btnRefreshMos').first().disabled = true;
   u('#mosInfoRows').empty();
 
+  const ops = await provider.send('sbch_getCcInfo', [])
+    .then(cc => cc.operators.map(op => op.address))
+    .catch(err => []);
+  console.log('ops:', ops);
+
   for (let i = 0; ; i++) {
     try {
       const moInfo = await mosGov.monitors(i);
       console.log(moInfo);
       const pbk = '0x0' + moInfo.pubkeyPrefix + moInfo.pubkeyX.substring(2);
       const electedTime = moInfo.electedTime > 0 ? new Date(moInfo.electedTime * 1000) : '';
-      const nominatedBy = await mosGov.getNominatedBy(moInfo.addr);
+
+      let nominatedBy = await mosGov.getNominatedBy(moInfo.addr);
+      nominatedBy = nominatedBy.map(op => op.toLowerCase());
+      nominatedBy = ops.map(op => nominatedBy.indexOf(op) >= 0 ? '✅' : '❓').join('');
       // console.log(nominatedBy);
 
       u('#mosInfoRows').append(`<tr>
@@ -894,7 +902,7 @@ u('#btnRefreshMos').handle('click', async (e) => {
   <td>${ethers.utils.parseBytes32String(moInfo.intro)}</td>
   <td>${ethers.utils.formatUnits(moInfo.stakedAmt)}</td>
   <td><abbr title='${electedTime}'>${moInfo.electedTime}</abbr></td>
-  <td><abbr title='${nominatedBy}'>${nominatedBy.length}</abbr></td>
+  <td>${nominatedBy}</abbr></td>
 </tr>`);
     } catch (e) {
       console.log(e);
