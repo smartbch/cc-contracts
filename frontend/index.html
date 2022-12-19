@@ -1232,7 +1232,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
 
   const covenantAddr = u('#historyCccAddr').first().value;
   let txList = await getHistory(covenantAddr);
-  txList = txList.reverse().filter(tx => tx.height > 1530543);
+  txList = txList.reverse().filter(tx => tx.height > 1531570);
   console.log(txList);
 
   for (let tx of txList) {
