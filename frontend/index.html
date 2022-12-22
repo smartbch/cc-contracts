@@ -17,6 +17,7 @@
           <li id="tabMos"><a>Monitors Gov</a></li>
           <li id="tabNodes"><a>Nodes Gov</a></li>
           <li id="tabUTXOs"><a>cc-UTXOs</a></li>
+          <li id="tabOperator"><a>Operator</a></li>
         </ul>
       </div>
     </section>
@@ -558,6 +559,26 @@
       </div>
     </section>
 
+    <section id="secOperator" class="section">
+      <div class="panel is-link">
+        <p class="panel-heading">RPC URL</p>
+        <div class="box">
+          <input class="input" type="text" placeholder="https://3.1.26.210:8801" id="tfOpRpcUrl">
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Operator Info</p>
+        <div class="box">
+          <div class="field">
+            <textarea class="textarea" readonly id="txtOpInfo"></textarea>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshOpInfo">Refresh</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <script type="module">
 import { ethers } from "./ethers-5.4.esm.min.js";
 import u from './umbrella-3.3.0.esm.js';
@@ -580,7 +601,7 @@ console.log('myAddr:', myAddr);
 
 const opsGovAddr = '0x70A55566F732f824509084375151A054f362B90F';
 const mosGovAddr = '0x304b5D9FBF1cab41846EEaD042E404994Fa61020';
-const ndsGovAddr = '0xb56393d9c5fae775c8B846e8E03B2954a68D3094';
+const ndsGovAddr = '0x4fE159925585EB891bf165d5ee7945bd871F3A7B';
 const ccSysAddr  = '0x0000000000000000000000000000000000002714';
 
 const rpcUrl = 'http://18.141.161.139:8545';
@@ -615,12 +636,18 @@ function getTx(txid) {
     .then(resp => resp.json())
     .catch(err => {});
 }
-
+function forwardOpReq(reqUrl) {
+  const url = `${utxoServer}/forward?to=${reqUrl}`;
+  console.log(url);
+  return fetch(url)
+    .then(resp => resp.json())
+    .catch(err => {});
+}
 
 // ========== UI ==========
 
-const tabIds = ['#tabSys', '#tabOps', '#tabMos', '#tabNodes', '#tabUTXOs'];
-const secIds = ['#secSys', '#secOps', '#secMos', '#secNodes', '#secUTXOs'];
+const tabIds = ['#tabSys', '#tabOps', '#tabMos', '#tabNodes', '#tabUTXOs', '#tabOperator'];
+const secIds = ['#secSys', '#secOps', '#secMos', '#secNodes', '#secUTXOs', '#secOperator'];
 
 function showMsg(msg) {
   toast({
@@ -1054,7 +1081,7 @@ u('#btnRefreshNodeProposals').handle('click', async (e) => {
   for (let i = 0; ; i++) {
     try {
       const proposal = await ndsGov.getProposal(i);
-      console.log(proposal);
+      console.log('proposal:', proposal);
 
       let pType = '?';
       let detail = '?';
@@ -1083,9 +1110,11 @@ u('#btnRefreshNodeProposals').handle('click', async (e) => {
       // votes = '[' + votes + ']';
       console.log(votes);
 
+      const createdTime = new Date(proposal.createdTime.toNumber() * 1000);
+
       u('#nodeProposalsRows').append(`<tr>
   <td>${i}</td>
-  <td>TODO</td>
+  <td><abbr title='${createdTime}'>${proposal.createdTime}</abbr></td>
   <td><code>${proposal.proposer}</code></td>
   <td><abbr title='${detail}'>${pType}</abbr></td>
   <td>${votes}</td>
@@ -1310,6 +1339,21 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
     }
   }
 
+});
+
+// ---------- Operator ----------
+
+u('#btnRefreshOpInfo').handle('click', async (e) => {
+  const opRpcUrl = u('#tfOpRpcUrl').first().value;
+  console.log('opRpcUrl:', opRpcUrl);
+
+  u('#btnRefreshOpInfo').first().disabled = true;
+  u('#txtOpInfo').first().value = '';
+
+  const result = await forwardOpReq(opRpcUrl + '/info');
+  u('#txtOpInfo').first().value = JSON.stringify(result, null, 2);
+
+  u('#btnRefreshOpInfo').first().disabled = false;
 });
 
 // ---------- activate tab ----------
