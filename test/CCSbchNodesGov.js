@@ -27,7 +27,7 @@ const testIntro    = testIntro0;
 const testNewNode  = { id: 0, pubkeyHash: testPbkHash, rpcUrl: testRpcUrl,  intro: testIntro   };
 const emptyNewNode = { id: 0, pubkeyHash: zeroBytes32, rpcUrl: zeroBytes32, intro: zeroBytes32 };
 
-const maturationPeriod = 2 * 24 * 3600;
+const maturationPeriod = 2      * 3600;
 const expirationPeriod = 7 * 24 * 3600;
 
 describe("CCSbchNodesGov", function () {

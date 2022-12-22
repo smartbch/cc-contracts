@@ -31,7 +31,7 @@ contract CCSbchNodesGov is Ownable {
     event ExecProposal       (uint indexed id);
     event RemoveNodeByMonitor(uint indexed nodeId, address indexed monitor);
 
-    uint constant PROPOSAL_MATURATION_PERIOD = 2 days; // after this period, the proposal is ready to be executed
+    uint constant PROPOSAL_MATURATION_PERIOD = 2 hours; // after this period, the proposal is ready to be executed
     uint constant PROPOSAL_EXPIRATION_PERIOD = 7 days; // after this period, the proposal is expired
 
     address immutable public MONITORS_GOV_ADDR;
@@ -88,6 +88,7 @@ contract CCSbchNodesGov is Ownable {
                                                        uint obsoleteNodeId,
                                                        uint votes) {
         Proposal storage proposal = proposals[id];
+        createdTime = proposal.createdTime;
         proposer = proposal.proposer;
         newProposers = proposal.newProposers;
         newNode = proposal.newNode;
