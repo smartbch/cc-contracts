@@ -106,6 +106,26 @@
           </div>
         </div>
       </div>
+      <div class="panel is-link">
+        <p class="panel-heading">Epochs</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table is-narrow">
+              <thead>
+                <tr>
+                  <th>Number</th>
+                  <th>Progress</th>
+                </tr>
+              </thead>
+              <tbody id="epochsRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshEpochs">Refresh</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="secOps" class="section is-hidden">
@@ -615,9 +635,12 @@ console.log('myAddr:', myAddr);
 
 // ========== Gov & Sys Contracts ==========
 
+const bchStartHeight = 1532624;
+const blocksPerEpoch = 60;
+
 const opsGovAddr = '0x70A55566F732f824509084375151A054f362B90F';
 const mosGovAddr = '0x304b5D9FBF1cab41846EEaD042E404994Fa61020';
-const ndsGovAddr = '0x4fE159925585EB891bf165d5ee7945bd871F3A7B';
+const ndsGovAddr = '0xb56393d9c5fae775c8B846e8E03B2954a68D3094';
 const ccSysAddr  = '0x0000000000000000000000000000000000002714';
 
 const rpcUrl = 'http://18.141.161.139:8545';
@@ -627,7 +650,6 @@ const mosGov = new ethers.Contract(mosGovAddr, mosGovJson.abi, signer);
 const ndsGov = new ethers.Contract(ndsGovAddr, ndsGovJson.abi, signer);
 const ccSys  = new ethers.Contract(ccSysAddr,  ccSysJson.abi,  signer);
 // console.log(ccSys);
-
 
 const utxoServer = 'http://3.1.26.210:8887';
 // const ccCovenantAddr = 'bchtest:pp4d87q4y0y84gtlrhaqsfcu74akya7f3c54m3nhzk';
@@ -658,6 +680,14 @@ function forwardOpReq(reqUrl) {
   return fetch(url)
     .then(resp => resp.json())
     .catch(err => {});
+}
+function getBchHeight() {
+  const url = `${utxoServer}/height`;
+  console.log(url);
+  return fetch(url)
+    .then(resp => resp.json())
+    .then(result => result.height)
+    .catch(err => 0);
 }
 
 // ========== UI ==========
@@ -815,6 +845,40 @@ u('#btnRefreshCcLogs').handle('click', async (e) => {
     }
   }
 
+});
+
+u('#btnRefreshEpochs').handle('click', async (e) => {
+  u('#btnRefreshEpochs').first().disabled = true;
+  u('#epochsRows').empty();
+
+  const wh = await provider.send('debug_watcherHeight', [])
+    .then(x => Number(x))
+    .catch(err => 0);
+  console.log('wh:', wh);
+
+  const h = await getBchHeight();
+  console.log('h:', h);
+
+  if (h > 0) {
+    let allBlocks = '◼'.repeat(h - bchStartHeight);
+    if (wh > 0 && h > wh) {
+      allBlocks += '◻'.repeat(h - wh);
+    }
+    console.log(allBlocks);
+
+    let i = 1;
+    while (allBlocks.length > 0) {
+      u('#epochsRows').append(`<tr>
+  <td>${i++}</td>
+  <td>${allBlocks.substring(0, blocksPerEpoch)}</td>
+</tr>`);
+
+      allBlocks = allBlocks.substring(blocksPerEpoch);
+      // console.log('allBlocks:', allBlocks);
+    }
+  }
+
+  u('#btnRefreshEpochs').first().disabled = false;
 });
 
 // ---------- Operators ----------
@@ -1277,7 +1341,7 @@ u('#btnRefreshTxHistory').handle('click', async (e) => {
 
   const covenantAddr = u('#historyCccAddr').first().value;
   let txList = await getHistory(covenantAddr);
-  txList = txList.reverse().filter(tx => tx.height > 1531570);
+  txList = txList.reverse().filter(tx => tx.height > bchStartHeight);
   console.log(txList);
 
   for (let tx of txList) {
