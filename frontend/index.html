@@ -544,7 +544,28 @@
             </table>
           </div>
           <div class="control">
-            <button class="button is-link" id="btnRefreshtoBeConvertedUtxos">Refresh</button>
+            <button class="button is-link" id="btnRefreshToBeConvertedUtxos">Refresh</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel is-link">
+        <p class="panel-heading">LostAndFound UTXOs</p>
+        <div class="box">
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>CovenantAddr</th>
+                  <th>TXID:Index</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="lnfUtxosRows">
+              </tbody>
+            </table>
+          </div>
+          <div class="control">
+            <button class="button is-link" id="btnRefreshLnfUtxos">Refresh</button>
           </div>
         </div>
       </div>
@@ -1283,7 +1304,7 @@ u('#btnRefreshRedeemableUtxos').handle('click', async (e) => {
   u('#redeemableUtxosRows').empty();
 
   const result = await provider.send('sbch_getRedeemableUtxos', []);
-  console.log(result);
+  console.log('Redeemable:', result);
 
   (result.infos || []).forEach((utxo, idx) => {
       u('#redeemableUtxosRows').append(
@@ -1302,7 +1323,7 @@ u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
   u('#redeemingUtxosRows').empty();
 
   const result = await provider.send('sbch_getRedeemingUtxosForOperators', []);
-  console.log(result);
+  console.log('Redeeming:', result);
 
   (result.infos || []).forEach((utxo, idx) => {
       u('#redeemingUtxosRows').append(
@@ -1316,12 +1337,12 @@ u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
   u('#btnRefreshRedeemingUtxos').first().disabled = false;
 });
 
-u('#btnRefreshtoBeConvertedUtxos').handle('click', async (e) => {
-  u('#btnRefreshtoBeConvertedUtxos').first().disabled = true;
+u('#btnRefreshToBeConvertedUtxos').handle('click', async (e) => {
+  u('#btnRefreshToBeConvertedUtxos').first().disabled = true;
   u('#toBeConvertedUtxosRows').empty();
 
   const result = await provider.send('sbch_getToBeConvertedUtxosForOperators', []);
-  console.log(result);
+  console.log('ToBeConverted:', result);
 
   (result.infos || []).forEach((utxo, idx) => {
       u('#toBeConvertedUtxosRows').append(
@@ -1332,7 +1353,26 @@ u('#btnRefreshtoBeConvertedUtxos').handle('click', async (e) => {
 </tr>`);
   });
 
-  u('#btnRefreshtoBeConvertedUtxos').first().disabled = false;
+  u('#btnRefreshToBeConvertedUtxos').first().disabled = false;
+});
+
+u('#btnRefreshLnfUtxos').handle('click', async (e) => {
+  u('#btnRefreshLnfUtxos').first().disabled = true;
+  u('#lnfUtxosRows').empty();
+
+  const result = await provider.send('sbch_getLostAndFoundUtxos', []);
+  console.log('LostAndFound:', result);
+
+  (result.infos || []).forEach((utxo, idx) => {
+      u('#lnfUtxosRows').append(
+`<tr>
+  <td><code>${utxo.covenantAddr}</code></td>
+  <td><code>${utxo.txid}:${utxo.index}</code></td>
+  <td>${utxo.amount / 10**8}</td>
+</tr>`);
+  });
+
+  u('#btnRefreshLnfUtxos').first().disabled = false;
 });
 
 u('#btnRefreshTxHistory').handle('click', async (e) => {
