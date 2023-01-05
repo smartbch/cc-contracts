@@ -228,7 +228,7 @@ async function initGovContracts() {
   const sep206 = new ethers.Contract(sep206Addr, erc20ABI, signer);
 
   // send monitors and operators some sBCH
-  const amt = ethers.utils.parseUnits('0.11');
+  const amt = ethers.utils.parseUnits('1');
   console.log('funding monitors ...');
   for (let mo of mos) {
     console.log(mo.wallet.address);
