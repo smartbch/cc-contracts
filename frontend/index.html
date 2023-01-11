@@ -656,7 +656,7 @@ console.log('myAddr:', myAddr);
 
 // ========== Gov & Sys Contracts ==========
 
-const bchStartHeight = 1534052;
+const bchStartHeight = 1534893;
 const blocksPerEpoch = 60;
 
 const opsGovAddr = '0x70A55566F732f824509084375151A054f362B90F';
@@ -1324,17 +1324,22 @@ u('#btnRefreshRedeemingUtxos').handle('click', async (e) => {
   u('#btnRefreshRedeemingUtxos').first().disabled = true;
   u('#redeemingUtxosRows').empty();
 
-  const result = await provider.send('sbch_getRedeemingUtxosForOperators', []);
+  const result = await provider.send('sbch_getRedeemingUtxosForOperators', [])
+    .catch(err => err);
   console.log('Redeeming:', result);
 
-  (result.infos || []).forEach((utxo, idx) => {
-      u('#redeemingUtxosRows').append(
+  if (result.infos) {
+    result.infos.forEach((utxo, idx) => {
+        u('#redeemingUtxosRows').append(
 `<tr>
   <td><code>${utxo.covenantAddr}</code></td>
   <td><code>${utxo.txid}:${utxo.index}</code></td>
   <td>${utxo.amount / 10**8}</td>
 </tr>`);
-  });
+    });
+  } else {
+    showErr(result);
+  }
 
   u('#btnRefreshRedeemingUtxos').first().disabled = false;
 });
@@ -1343,17 +1348,22 @@ u('#btnRefreshToBeConvertedUtxos').handle('click', async (e) => {
   u('#btnRefreshToBeConvertedUtxos').first().disabled = true;
   u('#toBeConvertedUtxosRows').empty();
 
-  const result = await provider.send('sbch_getToBeConvertedUtxosForOperators', []);
+  const result = await provider.send('sbch_getToBeConvertedUtxosForOperators', [])
+    .catch(err => err);
   console.log('ToBeConverted:', result);
 
-  (result.infos || []).forEach((utxo, idx) => {
-      u('#toBeConvertedUtxosRows').append(
+  if (result.infos) {
+    result.infos.forEach((utxo, idx) => {
+        u('#toBeConvertedUtxosRows').append(
 `<tr>
   <td><code>${utxo.covenantAddr}</code></td>
   <td><code>${utxo.txid}:${utxo.index}</code></td>
   <td>${utxo.amount / 10**8}</td>
 </tr>`);
-  });
+    });
+  } else {
+    showErr(result);
+  }
 
   u('#btnRefreshToBeConvertedUtxos').first().disabled = false;
 });
