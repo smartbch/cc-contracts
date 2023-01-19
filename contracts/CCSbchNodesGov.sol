@@ -266,22 +266,3 @@ contract CCSbchNodesGovForUT is CCSbchNodesGov {
     }
 
 }
-
-contract CCSbchNodesGovForIntegrationTest is CCSbchNodesGov {
-
-    constructor() CCSbchNodesGov(address(0x0), address(0x0), new address[](1)) {}
-
-    function addNode(bytes32 pubkeyHash,
-                     bytes32 rpcUrl,
-                     bytes32 intro) public {
-        uint id = nodes.length + 1;
-        nodes.push(NodeInfo(id, pubkeyHash, rpcUrl, intro));
-        nodeIdxById[id] = id - 1;
-    }
-
-    function delNode(uint id) public {
-        removeNodeById(id);
-    }
-
-}
-
